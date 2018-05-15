@@ -17,7 +17,7 @@ import datetime
 
 
 
-test_var = 7
+test_var = 10
 
 def test2():
 	print "here"
