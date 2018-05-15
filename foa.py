@@ -17,9 +17,10 @@ import datetime
 
 
 
-test_var = 6
+test_var = 7
 
 def test2():
+	print "here"
 	pass
 
 
