@@ -18,6 +18,9 @@ import datetime
 
 #test_new_online
 
+def test():
+	pass
+
 def is_number(instr):
 	try:
 		out =float(instr)
