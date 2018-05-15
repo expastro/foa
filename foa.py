@@ -16,18 +16,6 @@ from matplotlib.animation import FuncAnimation
 import datetime
 
 
-
-test_var = 10
-
-def test2():
-	print "here"
-	pass
-
-def test3():
-	print "here"
-	pass
-
-
 def is_number(instr):
 	try:
 		out =float(instr)
