@@ -16,7 +16,10 @@ from matplotlib.animation import FuncAnimation
 import datetime
 
 
-test_var = 5
+test_var = 6
+
+def test2():
+	pass
 
 def is_number(instr):
 	try:
