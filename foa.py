@@ -23,6 +23,10 @@ def test2():
 	print "here"
 	pass
 
+def test3():
+	print "here"
+	pass
+
 
 def is_number(instr):
 	try:
