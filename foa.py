@@ -16,7 +16,7 @@ from matplotlib.animation import FuncAnimation
 import datetime
 
 
-#test_new
+#test_new_online
 
 def is_number(instr):
 	try:
