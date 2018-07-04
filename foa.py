@@ -15,7 +15,7 @@ from matplotlib.animation import FuncAnimation
 
 import datetime
 
-#test
+
 def is_number(instr):
 	try:
 		out =float(instr)
@@ -366,6 +366,7 @@ class Gui():
 			tkMessageBox.showwarning("No Channel selected", "Please activate at least one channel under Options > Channel before loading a file.")
 		else:
 			self.filename = askopenfilename(defaultextension='.root', title = "Select file", filetypes = [("ROOT files","*.root")])
+			self.file_loaded = True
 			self.reload()
 
 	def reload(self):
@@ -534,6 +535,7 @@ class Gui():
 				self.detector_lst.append(self.detector_all_lst[ch])
 		
 		if self.file_loaded == True:
+			print "here"
 			self.reload()
 		
 		self.channel_window.destroy()
