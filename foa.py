@@ -535,7 +535,6 @@ class Gui():
 				self.detector_lst.append(self.detector_all_lst[ch])
 		
 		if self.file_loaded == True:
-			print "here"
 			self.reload()
 		
 		self.channel_window.destroy()
