@@ -15,6 +15,13 @@ from matplotlib.animation import FuncAnimation
 
 import datetime
 
+import argparse
+parser = argparse.ArgumentParser(description='FOA - Frankfurt Online Analizer')
+
+parser.add_argument('--ports', type = int,  default = 8,\
+                    help="Number of histograms in root file. In general equals number of ports on board.")
+args = parser.parse_args()
+
 
 def is_number(instr):
 	try:
@@ -85,7 +92,7 @@ class Gui():
 		## init the counts in window
 		self.ciw = {}
 		## number of channels on DAQ board
-		self.ports = 8
+		self.ports = args.ports
 		for j in range(self.ports):
 			self.ciw[j] = 0
 		self.ciw_ref = {}
@@ -183,8 +190,14 @@ class Gui():
 			self.f, self.ax = plt.subplots(2, 2)
 		elif len(self.detector_lst) <=6:
 			self.f, self.ax = plt.subplots(3, 2)
-		else:
+		elif len(self.detector_lst) <=9:
 			self.f, self.ax = plt.subplots(3, 3)
+		elif len(self.detector_lst) <=12:
+			self.f, self.ax = plt.subplots(4, 3)
+		elif len(self.detector_lst) <=16:
+			self.f, self.ax = plt.subplots(4, 4)
+		else:
+			raise SystemExit("Too many detectors!")
 		
 		## flatten the nested np.array so one loop is enough
 		## check axes type to np.array so it works with just one channel
