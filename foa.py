@@ -295,7 +295,6 @@ class Gui():
 			print "Error while loading data. Retry in {}s".format(self.update_interval)
 			try:
 				self.data_arr = data_arr_bak
-				print "here"
 				self.ref_time = datetime.datetime.now()
 			except:
 				self.data_arr = [[np.arange(100), np.zeros(100), datetime.datetime.now()]]
