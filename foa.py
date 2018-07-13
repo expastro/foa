@@ -85,7 +85,7 @@ class Gui():
 		"""Creates main window."""
 		### init variables
 		## default update interval
-		self.update_interval = 5
+		self.update_interval = 10
 		## load a file for the rest of the program to work
 		self.file_loaded = False
 		self.ref_time = datetime.datetime.now()
@@ -289,16 +289,18 @@ class Gui():
 		try:
 			self.data_arr = root_instance.get_data_all(self.detector_lst)
 			# ~ root_instance.close()
+			## time: end of loading process
+			self.ref_time = self.data_arr[-1][-1]
 		except:
 			print "Error while loading data. Retry in {}s".format(self.update_interval)
-			if len(self.data_arr) > 0:
+			try:
 				self.data_arr = data_arr_bak
+				print "here"
 				self.ref_time = datetime.datetime.now()
-			else:
+			except:
 				self.data_arr = [[np.arange(100), np.zeros(100), datetime.datetime.now()]]
 
-		## time: end of loading process
-		self.ref_time = self.data_arr[-1][-1]
+		
 		
 
 
@@ -507,7 +509,7 @@ class Gui():
 		
 		self.ch_button = tk.Button(self.channel_window, text='Accept',\
 		command = self.channel_button, width = 8)
-		self.ch_button.grid(row = 20, column = 0, padx = 10,\
+		self.ch_button.grid(row = 100, column = 0, padx = 10,\
 		pady = 10)
 
 
