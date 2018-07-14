@@ -4,6 +4,7 @@ import time
 
 import Tkinter as tk
 from tkFileDialog import askopenfilename
+from tkFileDialog import asksaveasfilename
 import tkMessageBox
 
 import matplotlib
@@ -14,6 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 import datetime
+import cPickle as pickle
 
 import argparse
 parser = argparse.ArgumentParser(description='FOA - Frankfurt Online Analizer')
@@ -272,12 +274,17 @@ class Gui():
 
 	def auto_scale_axes(self):
 		"""Sets limits so all data is displayed"""
-		for i in range(0, len(self.detector_lst)):
-			max_val_x = np.max(self.data_arr[i][0])
-			max_val_y = np.max(self.data_arr[i][1])
-			self.ax[i].set_xlim([-1 * max_val_x * 0.05, max_val_x * 1.05])
-			self.ax[i].set_ylim([-1 * max_val_y * 0.05, max_val_y* 1.05])
-		self.canvas.draw()
+		# if len(self.detector_lst) == len(self.data_arr):
+		try:
+			for i in range(0, len(self.data_arr)):
+				max_val_x = np.max(self.data_arr[i][0])
+				max_val_y = np.max(self.data_arr[i][1])
+				self.ax[i].set_xlim([-1 * max_val_x * 0.05, max_val_x * 1.05])
+				self.ax[i].set_ylim([-1 * max_val_y * 0.05, max_val_y* 1.05])
+			self.canvas.draw()
+		except:
+			print "Error while trying to auto-rescale."
+
 	
 
 	def call_root(self, time):
@@ -298,15 +305,13 @@ class Gui():
 				self.ref_time = datetime.datetime.now()
 			except:
 				self.data_arr = [[np.arange(100), np.zeros(100), datetime.datetime.now()]]
+				self.ref_time = datetime.datetime.now()
 
-		
 		
 
 
 	def root_data(self, time = False):
 		""" Stuff that gets done when new data is loaded """
-		
-
 
 		if ((datetime.datetime.now() - self.ref_time).total_seconds() > self.update_interval and self.stop_refresh.get() == 1) or time == False:
 		## display the loading message. this has to be done with a return 
@@ -372,6 +377,15 @@ class Gui():
 		options_menu.add_command(label="Channel...", command = self.channel_window)
 		options_menu.add_command(label="Viewer...", command = self.viewer_window)
 
+	def menu_bar_ch(self):
+		"""Menu Bar Channel windows"""
+		## Create a pull-down menu, and add it to the menu bar
+		pull_down_menu = tk.Menu(self.menubar_ch, tearoff = 0)
+		self.menubar_ch.add_cascade(label = "Settings", menu = pull_down_menu)
+		pull_down_menu.add_command(label = "Save...", command = self.channels_save)
+		pull_down_menu.add_command(label = "Load...", command = self.channels_load)
+		
+
 
 
 	def load(self):
@@ -382,6 +396,12 @@ class Gui():
 			self.filename = askopenfilename(defaultextension='.root', title = "Select file", filetypes = [("ROOT files","*.root")])
 			self.file_loaded = True
 			self.reload()
+
+	def destroyer(self, element):
+		try:
+			element.destroy()
+		except:
+			"Error while destroying '{}'".format(str(element))
 
 	def reload(self):
 		""" Open a file. If this is not the first file, destroy all plot tk
@@ -396,30 +416,47 @@ class Gui():
 				pass
 				
 			destroy = []
-			try:
-				self.canvas.get_tk_widget().destroy()
-				self.show_plot.destroy()
-				self.fit_button.destroy()
-				self.data_arr = []
-				self.ciw = {}
-				self.ln = []
-				self.ax = []
-				self.lim_dic = {}
-				self.draw_once = True
-				self.skip_to_load = False
-			except:
-				pass
 			
 			try:
-				self.update_label.destroy()
-				self.refresh_rate.destroy()
-				self.auto_scale_ck.destroy()
-				self.stop_refresh_ck.destroy()
+				self.destroyer(self.canvas.get_tk_widget())
 			except:
 				pass
-			
 			try:
-				self.load_msg.destroy()
+				self.destroyer(self.show_plot)
+			except:
+				pass
+			try:
+				self.destroyer(self.fit_button)
+			except:
+				pass
+			try:
+				self.destroyer(self.update_label)
+			except:
+				pass
+			try:
+				self.destroyer(self.refresh_rate)
+			except:
+				pass
+			try:
+				self.destroyer(self.auto_scale_ck)
+			except:
+				pass
+			try:
+				self.destroyer(self.stop_refresh_ck)
+			except:
+				pass
+
+			# reset all parameters
+			self.data_arr = []
+			self.ciw = {}
+			self.ln = []
+			self.ax = []
+			self.lim_dic = {}
+			self.draw_once = True
+			self.skip_to_load = False
+
+			try:
+				self.destroyer(self.load_msg)
 			except:
 				pass
 			
@@ -462,11 +499,49 @@ class Gui():
 			self.auto_scale_axes()
 			print "Rescaled axes"
 			
+	def channels_save(self):
+		"""Save options of every channel to file"""
+		all_options = []
+		for ch in range(self.ports):
+			single_option = []
+			single_option.append(self.int_vars[ch].get())
+			single_option.append(self.choice_vars[ch].get())
+			single_option.append(self.leaf_vars[ch].get())
+			single_option.append(self.name_vars[ch].get())
+			all_options.append(single_option)
+		
+		ch_save_fn = asksaveasfilename(defaultextension='.chset', title = \
+		"Save settings as...", filetypes = [("settings file","*.chset")])
+		
+		if len(ch_save_fn) == 0:
+			pass
+		else:
+			pickle.dump( all_options, open( ch_save_fn, "wb" ) )
 
+	def channels_load(self):
+		"""Save options from file"""
+		ch_load_fn = askopenfilename(defaultextension='.chset', \
+		title = "Load settings", filetypes = [("settings file","*.chset")])
+		if len(ch_load_fn) > 0:
+			all_options = pickle.load(open( ch_load_fn, "rb" ) )
+			for ch in range(self.ports):
+				self.int_vars[ch].set(all_options[ch][0])
+				self.choice_vars[ch].set(all_options[ch][1])
+				self.leaf_vars[ch].set(all_options[ch][2])
+				self.name_vars[ch].set(all_options[ch][3])
+		else:
+			pass
+
+
+	
 	def channel_window(self):
 		""" Window for channel options"""
 		self.channel_window = tk.Toplevel()
 		self.channel_window.title("Choose Channel")
+		
+		self.menubar_ch = tk.Menu(self.channel_window)
+		self.channel_window.config(menu = self.menubar_ch)
+		self.menu_bar_ch()
 		
 		self.chbuttons = []
 		self.choice_entry = []
