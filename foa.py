@@ -487,7 +487,7 @@ class Gui():
 			self.load_msg = tk.Label(self.root, textvariable=self.load_var)
 			self.load_msg.pack(side=tk.RIGHT, padx = 5, pady = 5)
 
-			self.auto_scale_ck = tk.Checkbutton(self.root, text="Auto rescale", variable=self.auto_scale)
+			self.auto_scale_ck = tk.Checkbutton(self.root, text="Auto rescale (beta)", variable=self.auto_scale)
 			self.auto_scale_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
 
 			self.stop_refresh_ck = tk.Checkbutton(self.root, text="Refresh", variable=self.stop_refresh)
