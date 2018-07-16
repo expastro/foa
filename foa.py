@@ -304,13 +304,13 @@ class Gui():
 				if len(data_arr_bak) == 0:
 					print "Initial loading error. Displaying junk data. Please wait for next update cycle."
 					for i in range(0, len(self.detector_lst)):
-						self.data_arr.append([np.arange(1,102), np.arange(1,102), datetime.datetime.now()])
+						self.data_arr.append([np.arange(1,101), np.ones(100), datetime.datetime.now()])
 						self.ref_time = datetime.datetime.now()
 				else:
 					self.data_arr = data_arr_bak
 					self.ref_time = datetime.datetime.now()
 			except:
-				self.data_arr = [[np.arange(1,102), np.arange(1,102), datetime.datetime.now()]]
+				self.data_arr = [[np.arange(1,101), np.ones(100), datetime.datetime.now()]]
 				self.ref_time = datetime.datetime.now()
 
 
