@@ -151,6 +151,7 @@ class Gui():
 		self.refresh_var = tk.StringVar()
 		self.load_var = tk.StringVar()
 		self.auto_scale = tk.IntVar()
+		self.auto_xscale_var = tk.IntVar()
 		self.safty_var = tk.IntVar()
 		self.safty_var.set(1)
 		self.stop_refresh = tk.IntVar()
@@ -249,7 +250,6 @@ class Gui():
 			
 			## read the current axes limits
 			self.lim_dic[i] = [self.ax[i].get_xlim(), self.ax[i].get_ylim()]
-
 			## read the counts in window 
 			self.counts_in_window(i)
 			## set the axis limits from list. this keeps the current zoom
@@ -285,7 +285,23 @@ class Gui():
 		except:
 			print "Error while trying to auto-rescale."
 
-	
+	def auto_xscale(self):
+		try:
+			for i in range(0, len(self.detector_lst)):
+				if self.ax[i].get_xlim() == (0.0, 1.0):
+					pass
+				else:
+					left,right = self.ax[i].get_xlim()
+					compare_right = self.data_arr[i][0][np.flatnonzero(self.data_arr[i][1])[-1]]
+					if compare_right + 5 <= np.max(self.data_arr[i][0]):
+						add_extra_bins = 5
+					else:
+						add_extra_bins = 0
+					if right < compare_right:
+						self.ax[i].set_xlim([left, compare_right+ add_extra_bins])
+			self.canvas.draw()
+		except:
+			pass
 
 	def call_root(self, time):
 		""" Loads the ROOT data"""
@@ -347,6 +363,7 @@ class Gui():
 			print "Updated data at {}".format(self.ref_time.strftime("%Y-%m-%d %H:%M:%S"))
 			
 			self.auto_scale_check()
+			self.auto_xscale()
 			## next time skipt this if to display load message
 			self.load_var.set("")
 		else:
@@ -446,6 +463,10 @@ class Gui():
 			except:
 				pass
 			try:
+				self.destroyer(self.auto_xscale_ck)
+			except:
+				pass
+			try:
 				self.destroyer(self.stop_refresh_ck)
 			except:
 				pass
@@ -494,6 +515,9 @@ class Gui():
 			self.auto_scale_ck = tk.Checkbutton(self.root, text="Auto rescale (beta)", variable=self.auto_scale)
 			self.auto_scale_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
 
+			self.auto_xscale_ck = tk.Checkbutton(self.root, text="x-scale (beta)", variable=self.auto_xscale_var)
+			self.auto_xscale_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
+
 			self.stop_refresh_ck = tk.Checkbutton(self.root, text="Refresh", variable=self.stop_refresh)
 			self.stop_refresh_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
 
@@ -501,6 +525,12 @@ class Gui():
 		""" Check if auto scale is checked"""
 		if self.auto_scale.get() == 1:
 			self.auto_scale_axes()
+			print "Rescaled axes"
+
+	def xscale_check(self):
+		""" Check if auto scale is checked"""
+		if self.xscale_check.get() == 1:
+			self.auto_xscale()
 			print "Rescaled axes"
 			
 	def channels_save(self):
@@ -607,8 +637,8 @@ class Gui():
 		tk.Label(self.viewer_window, text="s").grid(row = 0, column = 2, sticky = tk.W)
 
 		
-		self.auto_scale_ck = tk.Checkbutton(self.viewer_window, text="Safty refresh", variable=self.safty_var)
-		self.auto_scale_ck.grid(row = 1, column = 0, sticky = tk.W)
+		self.safty_ref_ck = tk.Checkbutton(self.viewer_window, text="Safty refresh", variable=self.safty_var)
+		self.safty_ref_ck.grid(row = 1, column = 0, sticky = tk.W)
 		
 		self.ch_button2 = tk.Button(self.viewer_window, text='Accept',\
 		command = self.channel_button2, width = 8)
