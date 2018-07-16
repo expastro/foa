@@ -115,7 +115,8 @@ class Gui():
 		self.data_arr = []
 		self.ln = []
 		self.lim_dic = {}
-		self.colors = ['midnightblue', 'darkorange', 'darkred','darkgreen', 'blueviolet', 'goldenrod', 'darkgray']
+		self.colors = ['midnightblue', 'darkorange', 'darkred','darkgreen', 'blueviolet', 'goldenrod', 'darkgray', 'darkolivegreen',\
+		'cyan', 'darkmagenta', 'navy', 'maroon'] * 2
 		self.int_vars = []
 		self.min_vars = []
 		self.max_vars = []
