@@ -26,6 +26,8 @@ parser.add_argument('--ports', type = int,  default = 8,\
                     help="Number of histograms in root file. In general equals number of ports on board.")
 parser.add_argument('--no_mp', action='store_false',\
                     help="Turn off multi processing. Data reading will block the main process.")
+# parser.add_argument('--no_mp', action='store_true',\
+                    # help="Turn on multi processing. Data reading will not block the main process.")
 args = parser.parse_args()
 
 
@@ -94,7 +96,7 @@ class Gui():
 		"""Creates main window."""
 		### init variables
 		## default update interval
-		self.update_interval = 5
+		self.update_interval = 12
 		## load a file for the rest of the program to work
 		self.file_loaded = False
 		self.ref_time = datetime.datetime.now()
@@ -243,10 +245,8 @@ class Gui():
 		
 		self.f.tight_layout(pad = 0.8)
 		
-		self.ani = FuncAnimation(self.f, self.update, interval = 300, blit=True)
+		self.ani = FuncAnimation(self.f, self.update, interval = 200, blit=True)
 		
-
-
 
 
 	def update(self,frame):
@@ -371,9 +371,9 @@ class Gui():
 					try:
 						self.data_arr, self.update_cycle = queue.get(block=False)
 					except:
-						self.root.after(100, check)
+						self.root.after(200, check)
 							
-				self.root.after(100, check)
+				self.root.after(200, check)
 
 			self.ref_time = datetime.datetime.now()
 			self.skip_to_load = True
@@ -395,7 +395,7 @@ class Gui():
 			print "Updated data at {}".format(self.ref_time.strftime("%Y-%m-%d %H:%M:%S"))
 			
 			self.auto_scale_check()
-			self.auto_xscale()
+			self.xscale_check()
 			## next time skipt this if to display load message
 			self.load_var.set("")
 		else:
@@ -550,12 +550,6 @@ class Gui():
 			self.auto_xscale_ck = tk.Checkbutton(self.root, text="x-scale (beta)", variable=self.auto_xscale_var)
 			self.auto_xscale_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
 
-			def test_button():
-				print "test", self.temp2
-				self.temp2 += 1
-			
-			tk.Button(self.root, text="test", command =test_button).pack(side = tk.LEFT, padx = 5, pady = 5)
-			
 			self.stop_refresh_ck = tk.Checkbutton(self.root, text="Refresh", variable=self.stop_refresh)
 			self.stop_refresh_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
 			
@@ -569,7 +563,7 @@ class Gui():
 
 	def xscale_check(self):
 		""" Check if auto scale is checked"""
-		if self.xscale_check.get() == 1:
+		if self.auto_xscale_var.get() == 1:
 			self.auto_xscale()
 			print "Rescaled axes"
 			
@@ -598,11 +592,19 @@ class Gui():
 		title = "Load settings", filetypes = [("settings file","*.chset")])
 		if len(ch_load_fn) > 0:
 			all_options = pickle.load(open( ch_load_fn, "rb" ) )
-			for ch in range(self.ports):
+			if self.ports > len(all_options):
+				run_to = len(all_options)
+			else:
+				run_to =self.ports
+			for ch in range(run_to):
 				self.int_vars[ch].set(all_options[ch][0])
 				self.choice_vars[ch].set(all_options[ch][1])
 				self.leaf_vars[ch].set(all_options[ch][2])
 				self.name_vars[ch].set(all_options[ch][3])
+			try:
+				self.channel_window.focus_set()
+			except:
+				pass
 		else:
 			pass
 
