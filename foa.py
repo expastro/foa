@@ -37,7 +37,7 @@ def is_number(instr):
 		return False
 
 multi_process = args.no_mp
-print "mp", multi_process
+print "Multiprocessing is set to:", multi_process
 
 class LoadRoot():
 	"""Load data from ROOT. This is not very efficient at the moment as it
@@ -94,7 +94,7 @@ class Gui():
 		"""Creates main window."""
 		### init variables
 		## default update interval
-		self.update_interval = 12
+		self.update_interval = 5
 		## load a file for the rest of the program to work
 		self.file_loaded = False
 		self.ref_time = datetime.datetime.now()
@@ -366,7 +366,14 @@ class Gui():
 				worker = multiprocessing.Process(target=self.call_root, args = (queue,))
 				worker.daemon = True
 				worker.start()
-				self.data_arr, self.update_cycle = queue.get()
+				# self.data_arr, self.update_cycle = queue.get()
+				def check():
+					try:
+						self.data_arr, self.update_cycle = queue.get(block=False)
+					except:
+						self.root.after(100, check)
+							
+				self.root.after(100, check)
 
 			self.ref_time = datetime.datetime.now()
 			self.skip_to_load = True
@@ -543,8 +550,16 @@ class Gui():
 			self.auto_xscale_ck = tk.Checkbutton(self.root, text="x-scale (beta)", variable=self.auto_xscale_var)
 			self.auto_xscale_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
 
+			def test_button():
+				print "test", self.temp2
+				self.temp2 += 1
+			
+			tk.Button(self.root, text="test", command =test_button).pack(side = tk.LEFT, padx = 5, pady = 5)
+			
 			self.stop_refresh_ck = tk.Checkbutton(self.root, text="Refresh", variable=self.stop_refresh)
 			self.stop_refresh_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
+			
+
 
 	def auto_scale_check(self):
 		""" Check if auto scale is checked"""
