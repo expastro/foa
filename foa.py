@@ -16,12 +16,16 @@ from matplotlib.animation import FuncAnimation
 
 import datetime
 import cPickle as pickle
+import multiprocessing
+import threading
 
 import argparse
 parser = argparse.ArgumentParser(description='FOA - Frankfurt Online Analizer')
 
 parser.add_argument('--ports', type = int,  default = 8,\
                     help="Number of histograms in root file. In general equals number of ports on board.")
+parser.add_argument('--no_mp', action='store_false',\
+                    help="Turn off multi processing. Data reading will block the main process.")
 args = parser.parse_args()
 
 
@@ -31,6 +35,9 @@ def is_number(instr):
 		return True
 	except:
 		return False
+
+multi_process = args.no_mp
+print "mp", multi_process
 
 class LoadRoot():
 	"""Load data from ROOT. This is not very efficient at the moment as it
@@ -87,7 +94,7 @@ class Gui():
 		"""Creates main window."""
 		### init variables
 		## default update interval
-		self.update_interval = 10
+		self.update_interval = 12
 		## load a file for the rest of the program to work
 		self.file_loaded = False
 		self.ref_time = datetime.datetime.now()
@@ -304,12 +311,12 @@ class Gui():
 		except:
 			pass
 
-	def call_root(self, time):
+	def call_root(self, future_result = None):
 		""" Loads the ROOT data"""
+		start_time = datetime.datetime.now()
 		root_instance = LoadRoot(self.filename)
-		data_arr_bak = self.data_arr 
+		data_arr_bak = self.data_arr
 		self.data_arr = []
-		
 		try:
 			self.data_arr = root_instance.get_data_all(self.detector_lst)
 			# ~ root_instance.close()
@@ -322,13 +329,17 @@ class Gui():
 					print "Initial loading error. Displaying junk data. Please wait for next update cycle."
 					for i in range(0, len(self.detector_lst)):
 						self.data_arr.append([np.arange(1,101), np.ones(100), datetime.datetime.now()])
-						self.ref_time = datetime.datetime.now()
+						# self.ref_time = datetime.datetime.now()
 				else:
 					self.data_arr = data_arr_bak
-					self.ref_time = datetime.datetime.now()
+					# self.ref_time = datetime.datetime.now()
 			except:
 				self.data_arr = [[np.arange(1,101), np.ones(100), datetime.datetime.now()]]
-				self.ref_time = datetime.datetime.now()
+				# self.ref_time = datetime.datetime.now()
+		if not future_result ==  None:
+			end_time = datetime.datetime.now()
+			print "here"
+			future_result.put([self.data_arr, (end_time -start_time).total_seconds()])
 
 
 	def root_data(self, time = False):
@@ -338,20 +349,34 @@ class Gui():
 		## display the loading message. this has to be done with a return 
 		## because the loading process blocks the main process and the 
 		## message wouldn't be displayed 
-			if self.skip_to_load:
-				self.load_var.set("Loading Data...")
-				self.skip_to_load = False
-				return
+			# if self.skip_to_load:
+				# self.load_var.set("Loading Data...")
+				# self.skip_to_load = False
+				# return
 			## time: start of loading process
 			cycle_start = datetime.datetime.now()
-
-			self.call_root(time = time)
 			
+			if time == False or multi_process == False:
+				self.call_root()
+			else:
+				args = []
+				kwargs = []
+				
+				queue= multiprocessing.Queue()
 
+				worker = multiprocessing.Process(target=self.call_root, args = (queue,))
+				worker.daemon = True
+				worker.start()
+				self.data_arr, self.update_cycle = queue.get()
+
+			self.ref_time = datetime.datetime.now()
 			self.skip_to_load = True
 			
 			## time the loading took
-			self.update_cycle = (self.ref_time - cycle_start).total_seconds()
+			if time == False or multi_process == False:
+				self.update_cycle = (self.ref_time - cycle_start).total_seconds()
+			else:
+				pass
 			
 			self.safty_update()
 
