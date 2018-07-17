@@ -338,7 +338,6 @@ class Gui():
 				# self.ref_time = datetime.datetime.now()
 		if not future_result ==  None:
 			end_time = datetime.datetime.now()
-			print "here"
 			future_result.put([self.data_arr, (end_time -start_time).total_seconds()])
 
 
