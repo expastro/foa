@@ -115,6 +115,10 @@ class Gui():
 		self.detector_lst = []
 		## dummy for gui
 		self.detector_all_lst = []
+		## initial loading error flag
+		self.init_loading = False
+		self.init_loading2 = False
+		self.init_loading3 = 0
 		
 		## default vals
 		
@@ -278,6 +282,15 @@ class Gui():
 				self.ani._blit_cache.clear()
 				self.canvas.draw()
 				self.ciw_ref[i] = self.ciw[i]
+			
+			## reset view if inital loading error
+			if self.init_loading == True and self.init_loading2 == True:
+				self.init_loading3 +=1
+				if self.init_loading3 >= 18 * len(self.detector_lst):
+					self.auto_scale_axes()
+					self.init_loading = False
+					self.init_loading2 = False
+					self.init_loading3 = False
 		return self.ln
 
 	def auto_scale_axes(self):
@@ -290,6 +303,9 @@ class Gui():
 				self.ax[i].set_xlim([-1 * max_val_x * 0.05, max_val_x * 1.05])
 				self.ax[i].set_ylim([-1 * max_val_y * 0.05, max_val_y* 1.05])
 			self.canvas.draw()
+			self.init_loading = False
+			self.init_loading2 = False
+			self.init_loading3 = False
 		except:
 			print "Error while trying to auto-rescale."
 
@@ -329,6 +345,7 @@ class Gui():
 					print "Initial loading error. Displaying junk data. Please wait for next update cycle."
 					for i in range(0, len(self.detector_lst)):
 						self.data_arr.append([np.arange(1,101), np.ones(100), datetime.datetime.now()])
+						self.init_loading = True
 						# self.ref_time = datetime.datetime.now()
 				else:
 					self.data_arr = data_arr_bak
@@ -374,6 +391,7 @@ class Gui():
 						self.root.after(200, check)
 							
 				self.root.after(200, check)
+				self.init_loading2 = True
 
 			self.ref_time = datetime.datetime.now()
 			self.skip_to_load = True
@@ -394,8 +412,12 @@ class Gui():
 				pass
 			print "Updated data at {}".format(self.ref_time.strftime("%Y-%m-%d %H:%M:%S"))
 			
+			## excecute scalings if checked
 			self.auto_scale_check()
 			self.xscale_check()
+			
+
+			
 			## next time skipt this if to display load message
 			self.load_var.set("")
 		else:
