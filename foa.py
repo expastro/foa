@@ -16,12 +16,18 @@ from matplotlib.animation import FuncAnimation
 
 import datetime
 import cPickle as pickle
+import multiprocessing
+import threading
 
 import argparse
 parser = argparse.ArgumentParser(description='FOA - Frankfurt Online Analizer')
 
 parser.add_argument('--ports', type = int,  default = 8,\
                     help="Number of histograms in root file. In general equals number of ports on board.")
+parser.add_argument('--no_mp', action='store_false',\
+                    help="Turn off multi processing. Data reading will block the main process.")
+# parser.add_argument('--no_mp', action='store_true',\
+                    # help="Turn on multi processing. Data reading will not block the main process.")
 args = parser.parse_args()
 
 
@@ -31,6 +37,9 @@ def is_number(instr):
 		return True
 	except:
 		return False
+
+multi_process = args.no_mp
+print "Multiprocessing is set to:", multi_process
 
 class LoadRoot():
 	"""Load data from ROOT. This is not very efficient at the moment as it
@@ -87,7 +96,7 @@ class Gui():
 		"""Creates main window."""
 		### init variables
 		## default update interval
-		self.update_interval = 10
+		self.update_interval = 12
 		## load a file for the rest of the program to work
 		self.file_loaded = False
 		self.ref_time = datetime.datetime.now()
@@ -106,6 +115,10 @@ class Gui():
 		self.detector_lst = []
 		## dummy for gui
 		self.detector_all_lst = []
+		## initial loading error flag
+		self.init_loading = False
+		self.init_loading2 = False
+		self.init_loading3 = 0
 		
 		## default vals
 		
@@ -115,7 +128,8 @@ class Gui():
 		self.data_arr = []
 		self.ln = []
 		self.lim_dic = {}
-		self.colors = ['midnightblue', 'darkorange', 'darkred','darkgreen', 'blueviolet', 'goldenrod', 'darkgray']
+		self.colors = ['midnightblue', 'darkorange', 'darkred','darkgreen', 'blueviolet', 'goldenrod', 'darkgray', 'darkolivegreen',\
+		'cyan', 'darkmagenta', 'navy', 'maroon'] * 2
 		self.int_vars = []
 		self.min_vars = []
 		self.max_vars = []
@@ -151,6 +165,7 @@ class Gui():
 		self.refresh_var = tk.StringVar()
 		self.load_var = tk.StringVar()
 		self.auto_scale = tk.IntVar()
+		self.auto_xscale_var = tk.IntVar()
 		self.safty_var = tk.IntVar()
 		self.safty_var.set(1)
 		self.stop_refresh = tk.IntVar()
@@ -234,10 +249,8 @@ class Gui():
 		
 		self.f.tight_layout(pad = 0.8)
 		
-		self.ani = FuncAnimation(self.f, self.update, interval = 300, blit=True)
+		self.ani = FuncAnimation(self.f, self.update, interval = 200, blit=True)
 		
-
-
 
 
 	def update(self,frame):
@@ -249,7 +262,6 @@ class Gui():
 			
 			## read the current axes limits
 			self.lim_dic[i] = [self.ax[i].get_xlim(), self.ax[i].get_ylim()]
-
 			## read the counts in window 
 			self.counts_in_window(i)
 			## set the axis limits from list. this keeps the current zoom
@@ -270,6 +282,15 @@ class Gui():
 				self.ani._blit_cache.clear()
 				self.canvas.draw()
 				self.ciw_ref[i] = self.ciw[i]
+			
+			## reset view if inital loading error
+			if self.init_loading == True and self.init_loading2 == True:
+				self.init_loading3 +=1
+				if self.init_loading3 >= 18 * len(self.detector_lst):
+					self.auto_scale_axes()
+					self.init_loading = False
+					self.init_loading2 = False
+					self.init_loading3 = False
 		return self.ln
 
 	def auto_scale_axes(self):
@@ -282,17 +303,36 @@ class Gui():
 				self.ax[i].set_xlim([-1 * max_val_x * 0.05, max_val_x * 1.05])
 				self.ax[i].set_ylim([-1 * max_val_y * 0.05, max_val_y* 1.05])
 			self.canvas.draw()
+			self.init_loading = False
+			self.init_loading2 = False
+			self.init_loading3 = False
 		except:
 			print "Error while trying to auto-rescale."
 
-	
+	def auto_xscale(self):
+		try:
+			for i in range(0, len(self.detector_lst)):
+				if self.ax[i].get_xlim() == (0.0, 1.0):
+					pass
+				else:
+					left,right = self.ax[i].get_xlim()
+					compare_right = self.data_arr[i][0][np.flatnonzero(self.data_arr[i][1])[-1]]
+					if compare_right + 5 <= np.max(self.data_arr[i][0]):
+						add_extra_bins = 5
+					else:
+						add_extra_bins = 0
+					if right < compare_right:
+						self.ax[i].set_xlim([left, compare_right+ add_extra_bins])
+			self.canvas.draw()
+		except:
+			pass
 
-	def call_root(self, time):
+	def call_root(self, future_result = None):
 		""" Loads the ROOT data"""
+		start_time = datetime.datetime.now()
 		root_instance = LoadRoot(self.filename)
-		data_arr_bak = self.data_arr 
+		data_arr_bak = self.data_arr
 		self.data_arr = []
-		
 		try:
 			self.data_arr = root_instance.get_data_all(self.detector_lst)
 			# ~ root_instance.close()
@@ -301,13 +341,21 @@ class Gui():
 		except:
 			print "Error while loading data. Retry in {}s".format(self.update_interval)
 			try:
-				self.data_arr = data_arr_bak
-				self.ref_time = datetime.datetime.now()
+				if len(data_arr_bak) == 0:
+					print "Initial loading error. Displaying junk data. Please wait for next update cycle."
+					for i in range(0, len(self.detector_lst)):
+						self.data_arr.append([np.arange(1,101), np.ones(100), datetime.datetime.now()])
+						self.init_loading = True
+						# self.ref_time = datetime.datetime.now()
+				else:
+					self.data_arr = data_arr_bak
+					# self.ref_time = datetime.datetime.now()
 			except:
-				self.data_arr = [[np.arange(100), np.zeros(100), datetime.datetime.now()]]
-				self.ref_time = datetime.datetime.now()
-
-		
+				self.data_arr = [[np.arange(1,101), np.ones(100), datetime.datetime.now()]]
+				# self.ref_time = datetime.datetime.now()
+		if not future_result ==  None:
+			end_time = datetime.datetime.now()
+			future_result.put([self.data_arr, (end_time -start_time).total_seconds()])
 
 
 	def root_data(self, time = False):
@@ -317,20 +365,42 @@ class Gui():
 		## display the loading message. this has to be done with a return 
 		## because the loading process blocks the main process and the 
 		## message wouldn't be displayed 
-			if self.skip_to_load:
-				self.load_var.set("Loading Data...")
-				self.skip_to_load = False
-				return
+			# if self.skip_to_load:
+				# self.load_var.set("Loading Data...")
+				# self.skip_to_load = False
+				# return
 			## time: start of loading process
 			cycle_start = datetime.datetime.now()
-
-			self.call_root(time = time)
 			
+			if time == False or multi_process == False:
+				self.call_root()
+			else:
+				args = []
+				kwargs = []
+				
+				queue= multiprocessing.Queue()
 
+				worker = multiprocessing.Process(target=self.call_root, args = (queue,))
+				worker.daemon = True
+				worker.start()
+				# self.data_arr, self.update_cycle = queue.get()
+				def check():
+					try:
+						self.data_arr, self.update_cycle = queue.get(block=False)
+					except:
+						self.root.after(200, check)
+							
+				self.root.after(200, check)
+				self.init_loading2 = True
+
+			self.ref_time = datetime.datetime.now()
 			self.skip_to_load = True
 			
 			## time the loading took
-			self.update_cycle = (self.ref_time - cycle_start).total_seconds()
+			if time == False or multi_process == False:
+				self.update_cycle = (self.ref_time - cycle_start).total_seconds()
+			else:
+				pass
 			
 			self.safty_update()
 
@@ -342,7 +412,12 @@ class Gui():
 				pass
 			print "Updated data at {}".format(self.ref_time.strftime("%Y-%m-%d %H:%M:%S"))
 			
+			## excecute scalings if checked
 			self.auto_scale_check()
+			self.xscale_check()
+			
+
+			
 			## next time skipt this if to display load message
 			self.load_var.set("")
 		else:
@@ -442,6 +517,10 @@ class Gui():
 			except:
 				pass
 			try:
+				self.destroyer(self.auto_xscale_ck)
+			except:
+				pass
+			try:
 				self.destroyer(self.stop_refresh_ck)
 			except:
 				pass
@@ -490,13 +569,24 @@ class Gui():
 			self.auto_scale_ck = tk.Checkbutton(self.root, text="Auto rescale (beta)", variable=self.auto_scale)
 			self.auto_scale_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
 
+			self.auto_xscale_ck = tk.Checkbutton(self.root, text="x-scale (beta)", variable=self.auto_xscale_var)
+			self.auto_xscale_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
+
 			self.stop_refresh_ck = tk.Checkbutton(self.root, text="Refresh", variable=self.stop_refresh)
 			self.stop_refresh_ck.pack(side = tk.LEFT, padx = 5, pady = 5)
+			
+
 
 	def auto_scale_check(self):
 		""" Check if auto scale is checked"""
 		if self.auto_scale.get() == 1:
 			self.auto_scale_axes()
+			print "Rescaled axes"
+
+	def xscale_check(self):
+		""" Check if auto scale is checked"""
+		if self.auto_xscale_var.get() == 1:
+			self.auto_xscale()
 			print "Rescaled axes"
 			
 	def channels_save(self):
@@ -524,11 +614,19 @@ class Gui():
 		title = "Load settings", filetypes = [("settings file","*.chset")])
 		if len(ch_load_fn) > 0:
 			all_options = pickle.load(open( ch_load_fn, "rb" ) )
-			for ch in range(self.ports):
+			if self.ports > len(all_options):
+				run_to = len(all_options)
+			else:
+				run_to =self.ports
+			for ch in range(run_to):
 				self.int_vars[ch].set(all_options[ch][0])
 				self.choice_vars[ch].set(all_options[ch][1])
 				self.leaf_vars[ch].set(all_options[ch][2])
 				self.name_vars[ch].set(all_options[ch][3])
+			try:
+				self.channel_window.focus_set()
+			except:
+				pass
 		else:
 			pass
 
@@ -603,8 +701,8 @@ class Gui():
 		tk.Label(self.viewer_window, text="s").grid(row = 0, column = 2, sticky = tk.W)
 
 		
-		self.auto_scale_ck = tk.Checkbutton(self.viewer_window, text="Safty refresh", variable=self.safty_var)
-		self.auto_scale_ck.grid(row = 1, column = 0, sticky = tk.W)
+		self.safty_ref_ck = tk.Checkbutton(self.viewer_window, text="Safty refresh", variable=self.safty_var)
+		self.safty_ref_ck.grid(row = 1, column = 0, sticky = tk.W)
 		
 		self.ch_button2 = tk.Button(self.viewer_window, text='Accept',\
 		command = self.channel_button2, width = 8)
