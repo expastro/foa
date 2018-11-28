@@ -47,23 +47,56 @@ class LoadRoot():
 	all events in python loop.
 	"""
 	def __init__(self,filename):
-		# ~ ROOT.gROOT.SetBatch()
+		ROOT.gROOT.SetBatch()
 		self.filename = filename
 		self.load()
 		self.temp = 0
 		
 	def load(self):
 		self.rfile = ROOT.TFile(self.filename)
-	
-	def get_data(self, leafname, ch):
+
+	def set_cut(self, hist, leaf, min_val, max_val):
+		print "in cut"
+		# max_y = hist.GetYaxis().GetBinCenter(hist.GetNbinsY())
+		# max_x = hist.GetXaxis().GetBinCenter(hist.GetNbinsX())
+		if leaf == "longgate":
+			min_y = 0
+			min_x = min_val
+			max_y = hist.GetYaxis().GetBinCenter(hist.GetNbinsY())
+			max_x = max_val
+		elif leaf == "t":
+			min_y = min_val
+			min_x = 0
+			max_y = max_val
+			max_x = max_x = hist.GetXaxis().GetBinCenter(hist.GetNbinsX())
+		
+		cut = ROOT.TCutG("cut",5)
+		cut.SetPoint(0, min_x,   min_y)
+		cut.SetPoint(1, min_x,   max_y)
+		cut.SetPoint(2, max_x, max_y)
+		cut.SetPoint(3, max_x, min_y)
+		cut.SetPoint(4, min_x,   min_y)
+		if leaf == "longgate":
+			cut_hist = hist.ProjectionY("projection",0,-1,"[cut]")
+		elif leaf == "t":
+			cut_hist = hist.ProjectionX("projection",0,-1,"[cut]")
+		return cut_hist
+
+	def get_data(self, leafname, ch, cut_from, cut_to):
 		x_lst = []
 		y_lst = []
 		hist = ROOT.gROOT.FindObject("hist_{}".format(ch))
 		
 		if leafname == "longgate":
-			hist_proj = hist.ProjectionY()
+			if cut_from == "":
+				hist_proj = hist.ProjectionY()
+			else:
+				hist_proj = self.set_cut(hist, "longgate", cut_from, cut_to)
 		elif leafname == "t":
-			hist_proj = hist.ProjectionX()
+			if cut_from == "":
+				hist_proj = hist.ProjectionX()
+			else:
+				hist_proj = self.set_cut(hist, "t", cut_from, cut_to)
 		else:
 			raise ImportError
 		
@@ -82,7 +115,7 @@ class LoadRoot():
 	def get_data_all(self, detector_lst):
 		all_out_lst = []
 		for det in detector_lst:
-			all_out_lst.append(self.get_data(det["leaf"], det["ch"]))
+			all_out_lst.append(self.get_data(det["leaf"], det["ch"], det["cut_from"], det["cut_to"]))
 		
 		return all_out_lst
 
@@ -123,7 +156,7 @@ class Gui():
 		## default vals
 		
 		for j in range(self.ports):
-			self.detector_all_lst.append({"ch" : j, "leaf" : "longgate", "on":False, "yscale" : "linear", "name":"Channel {}".format(j)})
+			self.detector_all_lst.append({"ch" : j, "leaf" : "longgate", "on":False, "yscale" : "linear", "name":"Channel {}".format(j),"cut_from": "", "cut_to": ""})
 		## tk and matplotlib variables
 		self.data_arr = []
 		self.ln = []
@@ -136,6 +169,8 @@ class Gui():
 		self.bin_vars = []
 		self.name_vars = []
 		self.choice_vars = []
+		self.cut_from_vars = []
+		self.cut_to_vars = []
 		self.choices = ["linear", "log"]
 		self.leaf = ["longgate", "t"]
 		self.leaf_vars = []
@@ -598,6 +633,8 @@ class Gui():
 			single_option.append(self.choice_vars[ch].get())
 			single_option.append(self.leaf_vars[ch].get())
 			single_option.append(self.name_vars[ch].get())
+			single_option.append(self.cut_from_vars[ch].get())
+			single_option.append(self.cut_to_vars[ch].get())
 			all_options.append(single_option)
 		
 		ch_save_fn = asksaveasfilename(defaultextension='.chset', title = \
@@ -623,6 +660,8 @@ class Gui():
 				self.choice_vars[ch].set(all_options[ch][1])
 				self.leaf_vars[ch].set(all_options[ch][2])
 				self.name_vars[ch].set(all_options[ch][3])
+				self.cut_from_vars[ch].set(all_options[ch][4])
+				self.cut_to_vars[ch].set(all_options[ch][5])
 			try:
 				self.channel_window.focus_set()
 			except:
@@ -645,24 +684,32 @@ class Gui():
 		self.choice_entry = []
 		self.name_entry = []
 		self.leaf_entry = []
+		self.cut_from_entry = []
+		self.cut_to_entry = []
 		
 		
 		tk.Label(self.channel_window, text="Channel").grid(row = 0, column = 0)
 		tk.Label(self.channel_window, text="y-Scale").grid(row = 0, column = 4)
 		tk.Label(self.channel_window, text="Leaf").grid(row = 0, column = 5)
 		tk.Label(self.channel_window, text="Name").grid(row = 0, column = 6)
+		tk.Label(self.channel_window, text="Cut from").grid(row = 0, column = 7)
+		tk.Label(self.channel_window, text="Cut to").grid(row = 0, column = 8)
 		
 		for ch in range(self.ports):
 			self.int_vars.append(tk.IntVar())
 			self.choice_vars.append(tk.StringVar())
 			self.name_vars.append(tk.StringVar())
 			self.leaf_vars.append(tk.StringVar())
+			self.cut_from_vars.append(tk.StringVar())
+			self.cut_to_vars.append(tk.StringVar())
 			
 			
 
 			self.name_vars[ch].set(self.detector_all_lst[ch]["name"])
 			self.choice_vars[ch].set(self.choices[0])
 			self.leaf_vars[ch].set(self.leaf[0])
+			self.cut_from_vars[ch].set(self.detector_all_lst[ch]["cut_from"])
+			self.cut_to_vars[ch].set(self.detector_all_lst[ch]["cut_to"])
 			
 			self.chbuttons.append(tk.Checkbutton(self.channel_window, text=str(ch), variable=self.int_vars[ch]))
 			self.chbuttons[ch].grid(row = ch +1 , column = 0, padx = (5,5), pady = (0,5), sticky = tk.W+tk.E)
@@ -677,6 +724,12 @@ class Gui():
 
 			self.name_entry.append(tk.Entry(self.channel_window, textvariable = self.name_vars[ch], width = 10))
 			self.name_entry[ch].grid(row = ch + 1, column = 6, padx = (5,5), pady = (0,5), sticky = tk.W)
+
+			self.cut_from_entry.append(tk.Entry(self.channel_window, textvariable = self.cut_from_vars[ch], width = 10))
+			self.cut_from_entry[ch].grid(row = ch + 1, column = 7, padx = (5,5), pady = (0,5), sticky = tk.W)
+
+			self.cut_to_entry.append(tk.Entry(self.channel_window, textvariable = self.cut_to_vars[ch], width = 10))
+			self.cut_to_entry[ch].grid(row = ch + 1, column = 8, padx = (5,5), pady = (0,5), sticky = tk.W)
 		
 		
 		self.ch_button = tk.Button(self.channel_window, text='Accept',\
@@ -718,12 +771,33 @@ class Gui():
 				self.detector_all_lst[ch]["yscale"] =  self.choice_vars[ch].get()
 				self.detector_all_lst[ch]["leaf"] =  self.leaf_vars[ch].get()
 				self.detector_all_lst[ch]["name"] =  self.name_vars[ch].get()
+				cut_from = self.cut_from_vars[ch].get()
+				if is_number(cut_from):
+					self.detector_all_lst[ch]["cut_from"] =  float(cut_from)
+				elif cut_from == "":
+					self.detector_all_lst[ch]["cut_from"] =  ""
+				else:
+					print "No cut set! Use only float values for cuts!"
+					self.detector_all_lst[ch]["cut_from"] =  ""
+				cut_to = self.cut_to_vars[ch].get()
+				if is_number(cut_to):
+					self.detector_all_lst[ch]["cut_to"] =  float(cut_to)
+				elif cut_to == "":
+					self.detector_all_lst[ch]["cut_to"] =  ""
+				else:
+					print "No cut set! Use only float values for cuts!"
+					self.detector_all_lst[ch]["cut_to"] =  ""
 				
+				if cut_from == "" and not cut_to == "":
+					self.detector_all_lst[ch]["cut_to"] =  ""
+					print "No cut set! Invalid cut combination!"
+				if cut_to == "" and not cut_from == "":
+					self.detector_all_lst[ch]["cut_from"] =  ""
+					print "No cut set! Invalid cut combination!"
 				self.detector_lst.append(self.detector_all_lst[ch])
 		
 		if self.file_loaded == True:
 			self.reload()
-		
 		self.channel_window.destroy()
 
 	def channel_button2(self):
