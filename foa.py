@@ -119,6 +119,8 @@ class Gui():
 		self.init_loading = False
 		self.init_loading2 = False
 		self.init_loading3 = 0
+		## alarms
+		self.alarm_lst = []
 		
 		## default vals
 		
@@ -142,6 +144,7 @@ class Gui():
 		self.det_count = 0
 		self.update_cycle = 0
 		self.skip_to_load = False
+		
 		
 		## debugging var
 		self.temp2 = 1
@@ -170,6 +173,9 @@ class Gui():
 		self.safty_var.set(1)
 		self.stop_refresh = tk.IntVar()
 		self.stop_refresh.set(1)
+
+		self.alarm_var = tk.StringVar()
+		
 
 		## hard shutdown when pressing the x
 		self.root.protocol("WM_DELETE_WINDOW", lambda: self.end())
@@ -218,6 +224,7 @@ class Gui():
 		
 		## flatten the nested np.array so one loop is enough
 		## check axes type to np.array so it works with just one channel
+		
 		if type(self.ax) == np.ndarray:
 			self.ax = self.ax.flatten()
 		else:
@@ -226,7 +233,6 @@ class Gui():
 		
 		## load the data for the first time
 		self.root_data()
-
 		self.canvas = FigureCanvasTkAgg(self.f, master=self.show_plot)
 		self.canvas.get_tk_widget().pack(side=tk.TOP,expand=tk.YES,fill=tk.BOTH)
 
@@ -451,6 +457,10 @@ class Gui():
 		self.menubar.add_cascade(label = "Options", menu = options_menu)
 		options_menu.add_command(label="Channel...", command = self.channel_window)
 		options_menu.add_command(label="Viewer...", command = self.viewer_window)
+		
+		alarm_menu = tk.Menu(self.menubar, tearoff = 0)
+		self.menubar.add_cascade(label = "Alarm", menu = alarm_menu)
+		alarm_menu.add_command(label="Set Alarm...", command = self.alarm_window)
 
 	def menu_bar_ch(self):
 		"""Menu Bar Channel windows"""
@@ -708,6 +718,133 @@ class Gui():
 		command = self.channel_button2, width = 8)
 		self.ch_button2.grid(row = 20, column = 0, padx = 10,\
 		pady = 10)
+	
+	
+	def alarm_window(self):
+		"""Window for viewer options"""
+		
+		if len(self.detector_lst) > 0:
+			self.alarm_window = tk.Toplevel()
+			self.alarm_window.title("Set Alarm")
+			
+
+			try:
+				self.alarm_window.focus_set()
+			except:
+				pass
+
+			self.alarm_status_label()
+			
+			name_lst = [x[0] for x in self.alarm_lst_temp]
+			self.alarm_var.set(name_lst[0])
+			alarm_menu = tk.OptionMenu(self.alarm_window, self.alarm_var, *name_lst)
+			alarm_menu.grid(row = 1, column = 0,padx = 10, sticky = tk.W)
+
+
+			self.alarm_var.trace("w", self.alarm_set_frame_func)
+
+
+			def alarm_close():
+				self.alarm_window.destroy()
+
+			self.alarm_button = tk.Button(self.alarm_window, text='Close',\
+			command = alarm_close, width = 8)
+			self.alarm_button.grid(row = 5, column = 0, padx = 10,\
+			pady = 10)
+
+		else:
+			tkMessageBox.showwarning("No Channel selected", "Please activate at least one channel under Options > Channel before loading a file.")
+
+	def alarm_status_label(self):
+		self.alarm_lst_temp = []
+		try:
+			for child in self.alarm_status_frame.winfo_children():
+				child.destroy()
+			self.alarm_status_frame.destroy()
+		except:
+			pass
+		self.alarm_status_frame = tk.LabelFrame(self.alarm_window, text="Status")
+		self.alarm_status_frame.grid(row = 0, column = 0,  padx = 10,  pady = 10)
+		for el in self.detector_lst:
+			status = False
+			for alarm_el in self.alarm_lst:
+				if el["ch"] == alarm_el["ch"] and alarm_el["status"] == True: 
+					status = True
+					break
+			self.alarm_lst_temp.append(['Channel {}: "{}"'.format(el["ch"], el["name"]), status])
+		for i, el in enumerate(self.alarm_lst_temp):
+			if el[1] == True:
+				col = "green"
+				txt = "On"
+			else:
+				col = "red"
+				txt = "Off"
+			tk.Label(self.alarm_status_frame, text="{:50}\t{:>4}".format(el[0], txt), fg = col).grid(row = i, column = 0, sticky = tk.W)
+
+	def alarm_set_frame_func(self, *args):
+		try:
+			self.alarm_set_frame.destroy()
+		except:
+			pass
+
+		channel = int(self.alarm_var.get().split(":")[0].split()[1])
+		self.alarm_set_frame = tk.LabelFrame(self.alarm_window, text="Set alarm")
+		self.alarm_set_frame.grid(row = 2, column = 0,  padx = 10,  pady = 10, sticky = tk.W)
+
+		self.alarm_check_var = tk.IntVar()
+		c = tk.Checkbutton(self.alarm_set_frame, text="Turn alarm ON", variable=self.alarm_check_var)
+		c.grid(row = 0, column = 0, sticky = tk.W)
+
+		self.y_cutoff_var = tk.StringVar()
+		y_cutoff = tk.Entry(self.alarm_set_frame, textvariable = self.y_cutoff_var, width = 12)
+		y_cutoff.grid(row = 1, column = 0, sticky = tk.W, pady = 5, padx = 5)
+		tk.Label(self.alarm_set_frame, text="y-cutoff").grid(row = 1, column = 1, sticky = tk.W, pady = 5)
+
+		self.x_cutoff_var = tk.StringVar()
+		x_cutoff = tk.Entry(self.alarm_set_frame, textvariable = self.x_cutoff_var, width = 12)
+		x_cutoff.grid(row = 2, column = 0, sticky = tk.W, pady = 5, padx = 5)
+		tk.Label(self.alarm_set_frame, text="x-cutoff").grid(row = 2, column = 1, sticky = tk.W, pady = 5)
+
+		for k, el in enumerate(self.alarm_lst):
+			if el["ch"] == channel:
+				self.alarm_check_var.set(1)
+				self.y_cutoff_var.set(str(el["y"]))
+				self.x_cutoff_var.set(str(el["x"]))
+
+
+		self.alarm_accept_button = tk.Button(self.alarm_set_frame, text='Accept',\
+		command = lambda: self.alarm_accept(channel), width = 8)
+		self.alarm_accept_button.grid(row = 2, column = 3, padx = 10,\
+		pady = 5)
+
+
+	def alarm_accept(self, channel):
+		valid = True
+		if self.alarm_check_var.get() == 1:
+			try:
+				y_cut = float(self.y_cutoff_var.get())
+			except:
+				valid = False
+				tkMessageBox.showwarning("Invalid entry", "Please use only float values for y-cutoff input.")
+			try:
+				x_cut = int(self.x_cutoff_var.get())
+			except:
+				valid = False
+				tkMessageBox.showwarning("Invalid entry", "Please use only integer values for x-cutoff input.")
+
+		for k, el in enumerate(self.alarm_lst):
+			if el["ch"] == channel:
+				del self.alarm_lst[k]
+
+		if self.alarm_check_var.get() == 1 and valid == True :
+			self.alarm_lst.append({"ch": channel, "status": True, "x": x_cut, "y": y_cut})
+
+			# for c in self.alarm_status_frame.winfo_children():
+			# 	c.destroy()
+			# tk.Label(self.alarm_status_frame, text="1", ).grid(row = 0, column = 0, sticky = tk.W)
+		self.alarm_status_label()
+		print self.alarm_lst
+
 
 	def channel_button(self):
 		""" Channel Window Button action. Reads entry fields and checkboxes"""
