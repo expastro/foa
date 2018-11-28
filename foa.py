@@ -96,7 +96,7 @@ class Gui():
 		"""Creates main window."""
 		### init variables
 		## default update interval
-		self.update_interval = 12
+		self.update_interval = 2#12
 		## load a file for the rest of the program to work
 		self.file_loaded = False
 		self.ref_time = datetime.datetime.now()
@@ -144,10 +144,13 @@ class Gui():
 		self.det_count = 0
 		self.update_cycle = 0
 		self.skip_to_load = False
+		self.alarm_sound_dict = {}
+		self.alarm_sound_count = {}
 		
 		
 		## debugging var
 		self.temp2 = 1
+		self.temp = 1
 		self.data_sim = 1.01
 		
 		
@@ -341,9 +344,19 @@ class Gui():
 		self.data_arr = []
 		try:
 			self.data_arr = root_instance.get_data_all(self.detector_lst)
+			# 
+			# temp_data = np.ones(100)
+			# temp_data[0:self.temp2] = 10
+			
+			# print self.temp2
+			# self.data_arr = [[np.arange(1,101), temp_data, datetime.datetime.now()]]
+
+			
+			
 			# ~ root_instance.close()
 			## time: end of loading process
 			self.ref_time = self.data_arr[-1][-1]
+			
 		except:
 			print "Error while loading data. Retry in {}s".format(self.update_interval)
 			try:
@@ -377,9 +390,10 @@ class Gui():
 				# return
 			## time: start of loading process
 			cycle_start = datetime.datetime.now()
-			
+			self.check_alarm()
 			if time == False or multi_process == False:
 				self.call_root()
+				
 			else:
 				args = []
 				kwargs = []
@@ -719,7 +733,50 @@ class Gui():
 		self.ch_button2.grid(row = 20, column = 0, padx = 10,\
 		pady = 10)
 	
+	def sound_alarm(self):
+		print "ALARM!"
 	
+	def check_alarm(self):
+		if len(self.data_arr) == 0:
+			return None
+		for i, ach in enumerate(self.alarm_lst):
+			for j, ch in enumerate(self.detector_lst):
+				if ach["ch"] == ch["ch"]:
+					alarm_bin_lst = np.where(self.data_arr[j][1] > ach["y"])[0]
+					alarm_last = alarm_bin_lst[-1]
+					print "alarm", alarm_last
+					if len(alarm_bin_lst) == 0:
+						break
+					else:
+						if j in self.alarm_sound_dict:
+							if self.data_arr[j][1][alarm_last] >= ach["y"] and not self.alarm_sound_dict[j] == alarm_last:
+								self.alarm_sound_dict[j] = alarm_last
+								self.alarm_sound_count[j] = 0
+							else:
+								self.alarm_sound_count[j] += 1
+								print ">", self.alarm_sound_count[j]
+								if self.alarm_sound_count[j] >= ach["x"]:
+									self.sound_alarm()
+								else:
+									pass
+
+						else:
+							self.alarm_sound_dict[j] = alarm_last
+							self.alarm_sound_count[j] = 0
+
+	def alarm_user_window(self):
+		"""Window for viewer options"""
+		
+		if len(self.detector_lst) > 0:
+			self.alarm_user = tk.Toplevel()
+			self.alarm_user.title("ALARM!")
+			
+
+			try:
+				self.alarm_user.focus_set()
+			except:
+				pass
+
 	def alarm_window(self):
 		"""Window for viewer options"""
 		
@@ -843,7 +900,6 @@ class Gui():
 			# 	c.destroy()
 			# tk.Label(self.alarm_status_frame, text="1", ).grid(row = 0, column = 0, sticky = tk.W)
 		self.alarm_status_label()
-		print self.alarm_lst
 
 
 	def channel_button(self):
