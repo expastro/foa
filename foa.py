@@ -56,7 +56,6 @@ class LoadRoot():
 		self.rfile = ROOT.TFile(self.filename)
 
 	def set_cut(self, hist, leaf, min_val, max_val):
-		print "in cut"
 		# max_y = hist.GetYaxis().GetBinCenter(hist.GetNbinsY())
 		# max_x = hist.GetXaxis().GetBinCenter(hist.GetNbinsX())
 		if leaf == "longgate":
