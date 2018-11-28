@@ -55,7 +55,7 @@ class LoadRoot():
 	def load(self):
 		self.rfile = ROOT.TFile(self.filename)
 
-	def set_cut(self, hist, leaf, min_val, max_val):
+	def set_cut(self, hist, leaf, min_val, max_val,ch):
 		# max_y = hist.GetYaxis().GetBinCenter(hist.GetNbinsY())
 		# max_x = hist.GetXaxis().GetBinCenter(hist.GetNbinsX())
 		if leaf == "longgate":
@@ -68,17 +68,17 @@ class LoadRoot():
 			min_x = 0
 			max_y = max_val
 			max_x = max_x = hist.GetXaxis().GetBinCenter(hist.GetNbinsX())
-		
-		cut = ROOT.TCutG("cut",5)
+
+		cut = ROOT.TCutG("cut_{}".format(ch),5)
 		cut.SetPoint(0, min_x,   min_y)
 		cut.SetPoint(1, min_x,   max_y)
 		cut.SetPoint(2, max_x, max_y)
 		cut.SetPoint(3, max_x, min_y)
 		cut.SetPoint(4, min_x,   min_y)
 		if leaf == "longgate":
-			cut_hist = hist.ProjectionY("projection",0,-1,"[cut]")
+			cut_hist = hist.ProjectionY("projection_{}".format(ch),0,-1,"[cut_{}]".format(ch))
 		elif leaf == "t":
-			cut_hist = hist.ProjectionX("projection",0,-1,"[cut]")
+			cut_hist = hist.ProjectionX("projection_{}".format(ch),0,-1,"[cut_{}]".format(ch))
 		return cut_hist
 
 	def get_data(self, leafname, ch, cut_from, cut_to):
@@ -90,12 +90,12 @@ class LoadRoot():
 			if cut_from == "":
 				hist_proj = hist.ProjectionY()
 			else:
-				hist_proj = self.set_cut(hist, "longgate", cut_from, cut_to)
+				hist_proj = self.set_cut(hist, "longgate", cut_from, cut_to, ch)
 		elif leafname == "t":
 			if cut_from == "":
 				hist_proj = hist.ProjectionX()
 			else:
-				hist_proj = self.set_cut(hist, "t", cut_from, cut_to)
+				hist_proj = self.set_cut(hist, "t", cut_from, cut_to, ch)
 		else:
 			raise ImportError
 		
