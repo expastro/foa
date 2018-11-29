@@ -1,6 +1,8 @@
 import ROOT
 import numpy as np
 import time 
+from playsound import playsound
+import time
 
 import Tkinter as tk
 from tkFileDialog import askopenfilename
@@ -146,6 +148,8 @@ class Gui():
 		self.skip_to_load = False
 		self.alarm_sound_dict = {}
 		self.alarm_sound_count = {}
+		self.alarm_user_hold = False
+		self.play_sound = False
 		
 		
 		## debugging var
@@ -447,6 +451,10 @@ class Gui():
 
 	def end(self):
 		""" This kills the program """
+		try:
+			self.sound_process.terminate()
+		except:
+			pass
 		self.root.destroy()
 		raise SystemExit()
 	
@@ -505,7 +513,7 @@ class Gui():
 	def reload(self):
 		""" Open a file. If this is not the first file, destroy all plot tk
 		elements and empty lists"""
-		if self.filename == "":
+		if len(self.filename) == 0:
 			return 
 		else:
 			try:
@@ -557,6 +565,8 @@ class Gui():
 			self.lim_dic = {}
 			self.draw_once = True
 			self.skip_to_load = False
+			self.alarm_sound_dict = {}
+			self.alarm_sound_count = {}
 
 			try:
 				self.destroyer(self.load_msg)
@@ -733,18 +743,18 @@ class Gui():
 		self.ch_button2.grid(row = 20, column = 0, padx = 10,\
 		pady = 10)
 	
-	def sound_alarm(self):
+	def sound_alarm(self, ch):
 		print "ALARM!"
+		self.alarm_user_window(ch)
 	
 	def check_alarm(self):
-		if len(self.data_arr) == 0:
+		if len(self.data_arr) == 0 or self.alarm_user_hold == True:
 			return None
 		for i, ach in enumerate(self.alarm_lst):
 			for j, ch in enumerate(self.detector_lst):
 				if ach["ch"] == ch["ch"]:
 					alarm_bin_lst = np.where(self.data_arr[j][1] > ach["y"])[0]
 					alarm_last = alarm_bin_lst[-1]
-					print "alarm", alarm_last
 					if len(alarm_bin_lst) == 0:
 						break
 					else:
@@ -756,7 +766,7 @@ class Gui():
 								self.alarm_sound_count[j] += 1
 								print ">", self.alarm_sound_count[j]
 								if self.alarm_sound_count[j] >= ach["x"]:
-									self.sound_alarm()
+									self.sound_alarm(j)
 								else:
 									pass
 
@@ -764,18 +774,66 @@ class Gui():
 							self.alarm_sound_dict[j] = alarm_last
 							self.alarm_sound_count[j] = 0
 
-	def alarm_user_window(self):
+	def alarm_user_window(self, ch):
 		"""Window for viewer options"""
 		
-		if len(self.detector_lst) > 0:
-			self.alarm_user = tk.Toplevel()
-			self.alarm_user.title("ALARM!")
-			
+		self.alarm_user = tk.Toplevel()
+		self.alarm_user.title("ALARM!")
+		# self.alarm_user.overrideredirect(1)
+		self.alarm_user.protocol("WM_DELETE_WINDOW", lambda: alarm_user_close())
 
-			try:
-				self.alarm_user.focus_set()
-			except:
-				pass
+		self.alarm_user_hold = True
+		try:
+			self.alarm_user.focus_set()
+		except:
+			pass
+		class FlashableLabel(tk.Label):
+			def flash(self):
+				bg = self.cget('background')
+				fg = self.cget('foreground')
+				self.configure(background=fg,foreground=bg)
+				self.after(1000,self.flash) 
+		
+		def sound():
+				while self.play_sound:
+					playsound("sounds/alert_short_2.mp3")
+					time.sleep(1.5)
+
+
+		
+		# tk.Label(self.alarm_user, text="ALARM in Channel {}".format(ch), fg = "red", font=("Arial", 20)).grid(row = 0, column = 0, sticky = tk.W)
+		test = FlashableLabel(self.alarm_user, text="ALARM in Channel {}".format(ch), fg = "red", bg = "black", font=("Arial", 40))
+		test.grid(row = 0, column = 0, sticky = tk.W, padx = 2, pady = 2, columnspan=2)
+		test.flash()
+		
+		self.play_sound = True
+		self.sound_process = multiprocessing.Process(target = sound)
+		self.sound_process.start()
+
+
+		def alarm_user_close():
+			self.alarm_user_hold = False
+			self.sound_process.terminate()
+			self.play_sound = False
+			self.alarm_user.destroy()
+		
+		self.alarm_user_button = tk.Button(self.alarm_user, text='Ok',\
+		command = alarm_user_close, width = 8)
+		self.alarm_user_button.grid(row = 1, column = 0, padx = 10,\
+		pady = 10)
+
+		def alarm_user_reset():
+			self.alarm_user_hold = False
+			self.play_sound = False
+			self.sound_process.terminate()
+			self.alarm_sound_dict = {}
+			self.alarm_sound_count = {}
+			self.alarm_user.destroy()
+		
+		self.alarm_user_reset = tk.Button(self.alarm_user, text='Ok and Reset',\
+		command = alarm_user_reset, width = 8)
+		self.alarm_user_reset.grid(row = 1, column = 1, padx = 10,\
+		pady = 10)
 
 	def alarm_window(self):
 		"""Window for viewer options"""
@@ -784,7 +842,6 @@ class Gui():
 			self.alarm_window = tk.Toplevel()
 			self.alarm_window.title("Set Alarm")
 			
-
 			try:
 				self.alarm_window.focus_set()
 			except:
