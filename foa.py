@@ -806,17 +806,16 @@ class Gui():
 			for j, ch in enumerate(self.detector_lst):
 				if ach["ch"] == ch["ch"]:
 					alarm_bin_lst = np.where(self.data_arr[j][1] > ach["y"])[0]
-					alarm_last = alarm_bin_lst[-1]
 					if len(alarm_bin_lst) == 0:
 						break
 					else:
+						alarm_last = alarm_bin_lst[-1]
 						if j in self.alarm_sound_dict:
 							if self.data_arr[j][1][alarm_last] >= ach["y"] and not self.alarm_sound_dict[j] == alarm_last:
 								self.alarm_sound_dict[j] = alarm_last
 								self.alarm_sound_count[j] = 0
 							else:
 								self.alarm_sound_count[j] += 1
-								print ">", self.alarm_sound_count[j]
 								if self.alarm_sound_count[j] >= ach["x"]:
 									self.sound_alarm(j)
 								else:
@@ -964,12 +963,12 @@ class Gui():
 		self.y_cutoff_var = tk.StringVar()
 		y_cutoff = tk.Entry(self.alarm_set_frame, textvariable = self.y_cutoff_var, width = 12)
 		y_cutoff.grid(row = 1, column = 0, sticky = tk.W, pady = 5, padx = 5)
-		tk.Label(self.alarm_set_frame, text="y-cutoff").grid(row = 1, column = 1, sticky = tk.W, pady = 5)
+		tk.Label(self.alarm_set_frame, text="Threshold").grid(row = 1, column = 1, sticky = tk.W, pady = 5)
 
 		self.x_cutoff_var = tk.StringVar()
 		x_cutoff = tk.Entry(self.alarm_set_frame, textvariable = self.x_cutoff_var, width = 12)
 		x_cutoff.grid(row = 2, column = 0, sticky = tk.W, pady = 5, padx = 5)
-		tk.Label(self.alarm_set_frame, text="x-cutoff").grid(row = 2, column = 1, sticky = tk.W, pady = 5)
+		tk.Label(self.alarm_set_frame, text="# Refreshes").grid(row = 2, column = 1, sticky = tk.W, pady = 5)
 
 		for k, el in enumerate(self.alarm_lst):
 			if el["ch"] == channel:
@@ -991,12 +990,12 @@ class Gui():
 				y_cut = float(self.y_cutoff_var.get())
 			except:
 				valid = False
-				tkMessageBox.showwarning("Invalid entry", "Please use only float values for y-cutoff input.")
+				tkMessageBox.showwarning("Invalid entry", "Please use only float values for Threshold input.")
 			try:
 				x_cut = int(self.x_cutoff_var.get())
 			except:
 				valid = False
-				tkMessageBox.showwarning("Invalid entry", "Please use only integer values for x-cutoff input.")
+				tkMessageBox.showwarning("Invalid entry", "Please use only integer values for # Refreshes input.")
 
 		for k, el in enumerate(self.alarm_lst):
 			if el["ch"] == channel:
