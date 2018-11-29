@@ -9,3 +9,11 @@ tree_version/test2.root
 tree_version/vdg_viewer_single.py
 tree_version/vdg_viewer_test.py
 .vscode/settings.json
+create_testfile.py
+*.chset
+*.root
+viewer.py
+viewer_async.py
+tree_version/gui.py
+async.py
+create_testfile_alarm.py
