@@ -1,6 +1,8 @@
 import ROOT
 import numpy as np
 import time 
+from playsound import playsound
+import time
 
 import Tkinter as tk
 from tkFileDialog import askopenfilename
@@ -128,7 +130,7 @@ class Gui():
 		"""Creates main window."""
 		### init variables
 		## default update interval
-		self.update_interval = 12
+		self.update_interval = 2#12
 		## load a file for the rest of the program to work
 		self.file_loaded = False
 		self.ref_time = datetime.datetime.now()
@@ -151,6 +153,8 @@ class Gui():
 		self.init_loading = False
 		self.init_loading2 = False
 		self.init_loading3 = 0
+		## alarms
+		self.alarm_lst = []
 		
 		## default vals
 		
@@ -176,9 +180,15 @@ class Gui():
 		self.det_count = 0
 		self.update_cycle = 0
 		self.skip_to_load = False
+		self.alarm_sound_dict = {}
+		self.alarm_sound_count = {}
+		self.alarm_user_hold = False
+		self.play_sound = False
+		
 		
 		## debugging var
 		self.temp2 = 1
+		self.temp = 1
 		self.data_sim = 1.01
 		
 		
@@ -204,6 +214,9 @@ class Gui():
 		self.safty_var.set(1)
 		self.stop_refresh = tk.IntVar()
 		self.stop_refresh.set(1)
+
+		self.alarm_var = tk.StringVar()
+		
 
 		## hard shutdown when pressing the x
 		self.root.protocol("WM_DELETE_WINDOW", lambda: self.end())
@@ -252,6 +265,7 @@ class Gui():
 		
 		## flatten the nested np.array so one loop is enough
 		## check axes type to np.array so it works with just one channel
+		
 		if type(self.ax) == np.ndarray:
 			self.ax = self.ax.flatten()
 		else:
@@ -260,7 +274,6 @@ class Gui():
 		
 		## load the data for the first time
 		self.root_data()
-
 		self.canvas = FigureCanvasTkAgg(self.f, master=self.show_plot)
 		self.canvas.get_tk_widget().pack(side=tk.TOP,expand=tk.YES,fill=tk.BOTH)
 
@@ -369,9 +382,19 @@ class Gui():
 		self.data_arr = []
 		try:
 			self.data_arr = root_instance.get_data_all(self.detector_lst)
+			# 
+			# temp_data = np.ones(100)
+			# temp_data[0:self.temp2] = 10
+			
+			# print self.temp2
+			# self.data_arr = [[np.arange(1,101), temp_data, datetime.datetime.now()]]
+
+			
+			
 			# ~ root_instance.close()
 			## time: end of loading process
 			self.ref_time = self.data_arr[-1][-1]
+			
 		except:
 			print "Error while loading data. Retry in {}s".format(self.update_interval)
 			try:
@@ -405,9 +428,10 @@ class Gui():
 				# return
 			## time: start of loading process
 			cycle_start = datetime.datetime.now()
-			
+			self.check_alarm()
 			if time == False or multi_process == False:
 				self.call_root()
+				
 			else:
 				args = []
 				kwargs = []
@@ -461,6 +485,10 @@ class Gui():
 
 	def end(self):
 		""" This kills the program """
+		try:
+			self.sound_process.terminate()
+		except:
+			pass
 		self.root.destroy()
 		raise SystemExit()
 	
@@ -485,6 +513,10 @@ class Gui():
 		self.menubar.add_cascade(label = "Options", menu = options_menu)
 		options_menu.add_command(label="Channel...", command = self.channel_window)
 		options_menu.add_command(label="Viewer...", command = self.viewer_window)
+		
+		alarm_menu = tk.Menu(self.menubar, tearoff = 0)
+		self.menubar.add_cascade(label = "Alarm", menu = alarm_menu)
+		alarm_menu.add_command(label="Set Alarm...", command = self.alarm_window)
 
 	def menu_bar_ch(self):
 		"""Menu Bar Channel windows"""
@@ -515,7 +547,7 @@ class Gui():
 	def reload(self):
 		""" Open a file. If this is not the first file, destroy all plot tk
 		elements and empty lists"""
-		if self.filename == "":
+		if len(self.filename) == 0:
 			return 
 		else:
 			try:
@@ -567,6 +599,8 @@ class Gui():
 			self.lim_dic = {}
 			self.draw_once = True
 			self.skip_to_load = False
+			self.alarm_sound_dict = {}
+			self.alarm_sound_count = {}
 
 			try:
 				self.destroyer(self.load_msg)
@@ -760,6 +794,222 @@ class Gui():
 		command = self.channel_button2, width = 8)
 		self.ch_button2.grid(row = 20, column = 0, padx = 10,\
 		pady = 10)
+	
+	def sound_alarm(self, ch):
+		print "ALARM!"
+		self.alarm_user_window(ch)
+	
+	def check_alarm(self):
+		if len(self.data_arr) == 0 or self.alarm_user_hold == True:
+			return None
+		for i, ach in enumerate(self.alarm_lst):
+			for j, ch in enumerate(self.detector_lst):
+				if ach["ch"] == ch["ch"]:
+					alarm_bin_lst = np.where(self.data_arr[j][1] > ach["y"])[0]
+					alarm_last = alarm_bin_lst[-1]
+					if len(alarm_bin_lst) == 0:
+						break
+					else:
+						if j in self.alarm_sound_dict:
+							if self.data_arr[j][1][alarm_last] >= ach["y"] and not self.alarm_sound_dict[j] == alarm_last:
+								self.alarm_sound_dict[j] = alarm_last
+								self.alarm_sound_count[j] = 0
+							else:
+								self.alarm_sound_count[j] += 1
+								print ">", self.alarm_sound_count[j]
+								if self.alarm_sound_count[j] >= ach["x"]:
+									self.sound_alarm(j)
+								else:
+									pass
+
+						else:
+							self.alarm_sound_dict[j] = alarm_last
+							self.alarm_sound_count[j] = 0
+
+	def alarm_user_window(self, ch):
+		"""Window for viewer options"""
+		
+		self.alarm_user = tk.Toplevel()
+		self.alarm_user.title("ALARM!")
+		# self.alarm_user.overrideredirect(1)
+		self.alarm_user.protocol("WM_DELETE_WINDOW", lambda: alarm_user_close())
+
+		self.alarm_user_hold = True
+		try:
+			self.alarm_user.focus_set()
+		except:
+			pass
+		class FlashableLabel(tk.Label):
+			def flash(self):
+				bg = self.cget('background')
+				fg = self.cget('foreground')
+				self.configure(background=fg,foreground=bg)
+				self.after(1000,self.flash) 
+		
+		def sound():
+				while self.play_sound:
+					playsound("sounds/alert_short_2.mp3")
+					time.sleep(1.5)
+
+
+		
+		# tk.Label(self.alarm_user, text="ALARM in Channel {}".format(ch), fg = "red", font=("Arial", 20)).grid(row = 0, column = 0, sticky = tk.W)
+		test = FlashableLabel(self.alarm_user, text="ALARM in Channel {}".format(ch), fg = "red", bg = "black", font=("Arial", 40))
+		test.grid(row = 0, column = 0, sticky = tk.W, padx = 2, pady = 2, columnspan=2)
+		test.flash()
+		
+		self.play_sound = True
+		self.sound_process = multiprocessing.Process(target = sound)
+		self.sound_process.start()
+
+
+		def alarm_user_close():
+			self.alarm_user_hold = False
+			self.sound_process.terminate()
+			self.play_sound = False
+			self.alarm_user.destroy()
+		
+		self.alarm_user_button = tk.Button(self.alarm_user, text='Ok',\
+		command = alarm_user_close, width = 8)
+		self.alarm_user_button.grid(row = 1, column = 0, padx = 10,\
+		pady = 10)
+
+		def alarm_user_reset():
+			self.alarm_user_hold = False
+			self.play_sound = False
+			self.sound_process.terminate()
+			self.alarm_sound_dict = {}
+			self.alarm_sound_count = {}
+			self.alarm_user.destroy()
+		
+		self.alarm_user_reset = tk.Button(self.alarm_user, text='Ok and Reset',\
+		command = alarm_user_reset, width = 8)
+		self.alarm_user_reset.grid(row = 1, column = 1, padx = 10,\
+		pady = 10)
+
+	def alarm_window(self):
+		"""Window for viewer options"""
+		
+		if len(self.detector_lst) > 0:
+			self.alarm_window = tk.Toplevel()
+			self.alarm_window.title("Set Alarm")
+			
+			try:
+				self.alarm_window.focus_set()
+			except:
+				pass
+
+			self.alarm_status_label()
+			
+			name_lst = [x[0] for x in self.alarm_lst_temp]
+			self.alarm_var.set(name_lst[0])
+			alarm_menu = tk.OptionMenu(self.alarm_window, self.alarm_var, *name_lst)
+			alarm_menu.grid(row = 1, column = 0,padx = 10, sticky = tk.W)
+
+
+			self.alarm_var.trace("w", self.alarm_set_frame_func)
+
+
+			def alarm_close():
+				self.alarm_window.destroy()
+
+			self.alarm_button = tk.Button(self.alarm_window, text='Close',\
+			command = alarm_close, width = 8)
+			self.alarm_button.grid(row = 5, column = 0, padx = 10,\
+			pady = 10)
+
+		else:
+			tkMessageBox.showwarning("No Channel selected", "Please activate at least one channel under Options > Channel before loading a file.")
+
+	def alarm_status_label(self):
+		self.alarm_lst_temp = []
+		try:
+			for child in self.alarm_status_frame.winfo_children():
+				child.destroy()
+			self.alarm_status_frame.destroy()
+		except:
+			pass
+		self.alarm_status_frame = tk.LabelFrame(self.alarm_window, text="Status")
+		self.alarm_status_frame.grid(row = 0, column = 0,  padx = 10,  pady = 10)
+		for el in self.detector_lst:
+			status = False
+			for alarm_el in self.alarm_lst:
+				if el["ch"] == alarm_el["ch"] and alarm_el["status"] == True: 
+					status = True
+					break
+			self.alarm_lst_temp.append(['Channel {}: "{}"'.format(el["ch"], el["name"]), status])
+		for i, el in enumerate(self.alarm_lst_temp):
+			if el[1] == True:
+				col = "green"
+				txt = "On"
+			else:
+				col = "red"
+				txt = "Off"
+			tk.Label(self.alarm_status_frame, text="{:50}\t{:>4}".format(el[0], txt), fg = col).grid(row = i, column = 0, sticky = tk.W)
+
+	def alarm_set_frame_func(self, *args):
+		try:
+			self.alarm_set_frame.destroy()
+		except:
+			pass
+
+		channel = int(self.alarm_var.get().split(":")[0].split()[1])
+		self.alarm_set_frame = tk.LabelFrame(self.alarm_window, text="Set alarm")
+		self.alarm_set_frame.grid(row = 2, column = 0,  padx = 10,  pady = 10, sticky = tk.W)
+
+		self.alarm_check_var = tk.IntVar()
+		c = tk.Checkbutton(self.alarm_set_frame, text="Turn alarm ON", variable=self.alarm_check_var)
+		c.grid(row = 0, column = 0, sticky = tk.W)
+
+		self.y_cutoff_var = tk.StringVar()
+		y_cutoff = tk.Entry(self.alarm_set_frame, textvariable = self.y_cutoff_var, width = 12)
+		y_cutoff.grid(row = 1, column = 0, sticky = tk.W, pady = 5, padx = 5)
+		tk.Label(self.alarm_set_frame, text="y-cutoff").grid(row = 1, column = 1, sticky = tk.W, pady = 5)
+
+		self.x_cutoff_var = tk.StringVar()
+		x_cutoff = tk.Entry(self.alarm_set_frame, textvariable = self.x_cutoff_var, width = 12)
+		x_cutoff.grid(row = 2, column = 0, sticky = tk.W, pady = 5, padx = 5)
+		tk.Label(self.alarm_set_frame, text="x-cutoff").grid(row = 2, column = 1, sticky = tk.W, pady = 5)
+
+		for k, el in enumerate(self.alarm_lst):
+			if el["ch"] == channel:
+				self.alarm_check_var.set(1)
+				self.y_cutoff_var.set(str(el["y"]))
+				self.x_cutoff_var.set(str(el["x"]))
+
+
+		self.alarm_accept_button = tk.Button(self.alarm_set_frame, text='Accept',\
+		command = lambda: self.alarm_accept(channel), width = 8)
+		self.alarm_accept_button.grid(row = 2, column = 3, padx = 10,\
+		pady = 5)
+
+
+	def alarm_accept(self, channel):
+		valid = True
+		if self.alarm_check_var.get() == 1:
+			try:
+				y_cut = float(self.y_cutoff_var.get())
+			except:
+				valid = False
+				tkMessageBox.showwarning("Invalid entry", "Please use only float values for y-cutoff input.")
+			try:
+				x_cut = int(self.x_cutoff_var.get())
+			except:
+				valid = False
+				tkMessageBox.showwarning("Invalid entry", "Please use only integer values for x-cutoff input.")
+
+		for k, el in enumerate(self.alarm_lst):
+			if el["ch"] == channel:
+				del self.alarm_lst[k]
+
+		if self.alarm_check_var.get() == 1 and valid == True :
+			self.alarm_lst.append({"ch": channel, "status": True, "x": x_cut, "y": y_cut})
+
+			# for c in self.alarm_status_frame.winfo_children():
+			# 	c.destroy()
+			# tk.Label(self.alarm_status_frame, text="1", ).grid(row = 0, column = 0, sticky = tk.W)
+		self.alarm_status_label()
+
 
 	def channel_button(self):
 		""" Channel Window Button action. Reads entry fields and checkboxes"""
