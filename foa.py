@@ -315,9 +315,9 @@ class Gui():
 		
 	def save_fig(self):
 		time_delta = float(self.save_pic_time_var.get())
-		pic_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pics")
-		ensure_dir_silent(pic_path)
 		if (datetime. datetime.now() - self.save_time ).seconds > time_delta and self.save_pic_var.get() == 1:
+			pic_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pics")
+			ensure_dir_silent(pic_path)
 			self.f.subplots_adjust(top=0.92)
 			self.f.suptitle("{}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), fontsize = 16))
 			plt.savefig(os.path.join(pic_path, "foa_save.png"), dpi = 500)
