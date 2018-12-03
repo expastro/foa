@@ -2,7 +2,7 @@ import ROOT
 import numpy as np
 import time 
 from playsound import playsound
-import time
+
 
 import Tkinter as tk
 from tkFileDialog import askopenfilename
@@ -20,6 +20,7 @@ import datetime
 import cPickle as pickle
 import multiprocessing
 import threading
+import os
 
 import argparse
 parser = argparse.ArgumentParser(description='FOA - Frankfurt Online Analizer')
@@ -39,6 +40,14 @@ def is_number(instr):
 		return True
 	except:
 		return False
+
+def ensure_dir_silent(dir_name):
+	"""
+	Creates a directory with name 'dir_name'.
+	"""
+	
+	if not os.path.isdir(dir_name):
+		os.makedirs(dir_name) 
 
 multi_process = args.no_mp
 print "Multiprocessing is set to:", multi_process
@@ -184,6 +193,7 @@ class Gui():
 		self.alarm_sound_count = {}
 		self.alarm_user_hold = False
 		self.play_sound = False
+		self.save_time = datetime.datetime(2000,1,1)
 		
 		
 		## debugging var
@@ -214,6 +224,10 @@ class Gui():
 		self.safty_var.set(1)
 		self.stop_refresh = tk.IntVar()
 		self.stop_refresh.set(1)
+		self.save_pic_var = tk.IntVar()
+		self.save_pic_time_var = tk.StringVar()
+		self.save_pic_time_var.set("60")
+
 
 		self.alarm_var = tk.StringVar()
 		
@@ -296,8 +310,20 @@ class Gui():
 		
 		self.f.tight_layout(pad = 0.8)
 		
+
 		self.ani = FuncAnimation(self.f, self.update, interval = 200, blit=True)
 		
+	def save_fig(self):
+		time_delta = float(self.save_pic_time_var.get())
+		pic_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pics")
+		ensure_dir_silent(pic_path)
+		if (datetime. datetime.now() - self.save_time ).seconds > time_delta and self.save_pic_var.get() == 1:
+			self.f.subplots_adjust(top=0.92)
+			self.f.suptitle("{}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), fontsize = 16))
+			plt.savefig(os.path.join(pic_path, "foa_save.png"), dpi = 500)
+			self.save_time = datetime.datetime.now()
+			self.f.subplots_adjust(top=0.97)
+			self.f.suptitle("")
 
 
 	def update(self,frame):
@@ -330,6 +356,10 @@ class Gui():
 				self.canvas.draw()
 				self.ciw_ref[i] = self.ciw[i]
 			
+			## save plot
+
+			self.save_fig()
+
 			## reset view if inital loading error
 			if self.init_loading == True and self.init_loading2 == True:
 				self.init_loading3 +=1
@@ -789,12 +819,20 @@ class Gui():
 		
 		self.safty_ref_ck = tk.Checkbutton(self.viewer_window, text="Safty refresh", variable=self.safty_var)
 		self.safty_ref_ck.grid(row = 1, column = 0, sticky = tk.W)
+
+
+		self.save_pic_check = tk.Checkbutton(self.viewer_window, text="Save Screenshot", variable=self.save_pic_var)
+		self.save_pic_check.grid(row = 2, column = 0, sticky = tk.W)
+
+		self.save_pic_entry = (tk.Entry(self.viewer_window, textvariable = self.save_pic_time_var, width = 5))
+		self.save_pic_entry.grid(row = 2, column = 1, padx = (5,0), pady = (0,5), sticky = tk.E)
+		tk.Label(self.viewer_window, text="s").grid(row = 2, column = 2, sticky = tk.W)
 		
 		self.ch_button2 = tk.Button(self.viewer_window, text='Accept',\
 		command = self.channel_button2, width = 8)
 		self.ch_button2.grid(row = 20, column = 0, padx = 10,\
 		pady = 10)
-	
+
 	def sound_alarm(self, ch):
 		print "ALARM!"
 		self.alarm_user_window(ch)
@@ -1055,6 +1093,9 @@ class Gui():
 			self.update_var.set("Refresh rate: {}s".format(self.update_interval))
 		
 		self.safty_var.set(self.safty_var.get())
+
+		if is_number(self.save_pic_time_var.get()):
+			self.save_pic_time_var.set(float(self.save_pic_entry.get()))
 		
 		self.viewer_window.destroy()
 
