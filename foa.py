@@ -833,10 +833,6 @@ class Gui():
 		self.ch_button2.grid(row = 20, column = 0, padx = 10,\
 		pady = 10)
 
-	def sound_alarm(self, ch):
-		print "ALARM!"
-		self.alarm_user_window(ch)
-	
 	def check_alarm(self):
 		if len(self.data_arr) == 0 or self.alarm_user_hold == True:
 			return None
@@ -855,7 +851,8 @@ class Gui():
 							else:
 								self.alarm_sound_count[j] += 1
 								if self.alarm_sound_count[j] >= ach["x"]:
-									self.sound_alarm(j)
+									print "ALARM! Channel {} ('{}')".format(ch["ch"], ch["name"])
+									self.alarm_user_window(ch["ch"], ch["name"])
 								else:
 									pass
 
@@ -863,7 +860,7 @@ class Gui():
 							self.alarm_sound_dict[j] = alarm_last
 							self.alarm_sound_count[j] = 0
 
-	def alarm_user_window(self, ch):
+	def alarm_user_window(self, ch, name):
 		"""Window for viewer options"""
 		
 		self.alarm_user = tk.Toplevel()
@@ -891,7 +888,7 @@ class Gui():
 
 		
 		# tk.Label(self.alarm_user, text="ALARM in Channel {}".format(ch), fg = "red", font=("Arial", 20)).grid(row = 0, column = 0, sticky = tk.W)
-		test = FlashableLabel(self.alarm_user, text="ALARM in Channel {}".format(ch), fg = "red", bg = "black", font=("Arial", 40))
+		test = FlashableLabel(self.alarm_user, text="ALARM in Channel {} ('{}')".format(ch, name), fg = "red", bg = "black", font=("Arial", 40))
 		test.grid(row = 0, column = 0, sticky = tk.W, padx = 2, pady = 2, columnspan=2)
 		test.flash()
 		
