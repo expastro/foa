@@ -882,7 +882,8 @@ class Gui():
 		
 		def sound():
 				while self.play_sound:
-					playsound("sounds/alert_short_2.mp3")
+					sound_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sounds", "alert_short_2.mp3")
+					playsound(sound_path)
 					time.sleep(1.5)
 
 
