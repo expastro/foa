@@ -11,7 +11,7 @@ import tkMessageBox
 
 import matplotlib
 matplotlib.use("TkAgg")
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk #NavigationToolbar2TkAgg
 from matplotlib.figure import Figure 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -257,8 +257,8 @@ class Gui():
 		""" Function to create the main matplotlib plot """
 		
 		## delete the default matplotlib home button
-		class CustomToolbar(NavigationToolbar2TkAgg):
-			toolitems = filter(lambda x: x[0] != "Home", NavigationToolbar2TkAgg.toolitems)
+		class CustomToolbar(NavigationToolbar2Tk):
+			toolitems = filter(lambda x: x[0] != "Home", NavigationToolbar2Tk.toolitems)
 		
 		
 		## number of plots depending on used channels
