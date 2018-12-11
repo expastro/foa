@@ -11,7 +11,9 @@ import tkMessageBox
 
 import matplotlib
 matplotlib.use("TkAgg")
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg #NavigationToolbar2TkAgg
+#from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg #NavigationToolbar2TkAgg
+
+# a new Toolbar backend is necessary for the newest matplotlib verions
 try:
 	from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as NavigationToolbar2TkAgg
 except ImportError:
@@ -319,14 +321,19 @@ class Gui():
 		self.ani = FuncAnimation(self.f, self.update, interval = 200, blit=True)
 		
 	def save_fig(self):
+		"""Function to save the current plot to file. Check first if given amount
+		of seconds have passed"""
 		time_delta = float(self.save_pic_time_var.get())
 		if (datetime. datetime.now() - self.save_time ).seconds > time_delta and self.save_pic_var.get() == 1:
+			# save to folder "pics"
 			pic_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pics")
 			ensure_dir_silent(pic_path)
+			# add timestamp
 			self.f.subplots_adjust(top=0.92)
 			self.f.suptitle("{}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), fontsize = 16))
 			plt.savefig(os.path.join(pic_path, "foa_save.png"), dpi = 500)
 			self.save_time = datetime.datetime.now()
+			# remove timestamp for foa window
 			self.f.subplots_adjust(top=0.97)
 			self.f.suptitle("")
 
@@ -392,6 +399,7 @@ class Gui():
 			print "Error while trying to auto-rescale."
 
 	def auto_xscale(self):
+		"""Rescales x-axis if there is data beyond the current x-cut"""
 		try:
 			for i in range(0, len(self.detector_lst)):
 				if self.ax[i].get_xlim() == (0.0, 1.0):
@@ -839,6 +847,8 @@ class Gui():
 		pady = 10)
 
 	def check_alarm(self):
+		"""Check if last bin in data array is larger than given value. If this
+		fails a given number of times, sound alarm"""
 		if len(self.data_arr) == 0 or self.alarm_user_hold == True:
 			return None
 		for i, ach in enumerate(self.alarm_lst):
@@ -866,7 +876,7 @@ class Gui():
 							self.alarm_sound_count[j] = 0
 
 	def alarm_user_window(self, ch, name):
-		"""Window for viewer options"""
+		"""Alarm popup window"""
 		
 		self.alarm_user = tk.Toplevel()
 		self.alarm_user.title("ALARM!")
@@ -898,6 +908,7 @@ class Gui():
 		test.grid(row = 0, column = 0, sticky = tk.W, padx = 2, pady = 2, columnspan=2)
 		test.flash()
 		
+		# start new process for sound, so it won't block the main loop
 		self.play_sound = True
 		self.sound_process = multiprocessing.Process(target = sound)
 		self.sound_process.start()
@@ -928,7 +939,7 @@ class Gui():
 		pady = 10)
 
 	def alarm_window(self):
-		"""Window for viewer options"""
+		"""Window for alarm options"""
 		
 		if len(self.detector_lst) > 0:
 			self.alarm_window = tk.Toplevel()
@@ -962,6 +973,7 @@ class Gui():
 			tkMessageBox.showwarning("No Channel selected", "Please activate at least one channel under Options > Channel before loading a file.")
 
 	def alarm_status_label(self):
+		"""Displays alarm status for selected channels"""
 		self.alarm_lst_temp = []
 		try:
 			for child in self.alarm_status_frame.winfo_children():
@@ -988,6 +1000,7 @@ class Gui():
 			tk.Label(self.alarm_status_frame, text="{:50}\t{:>4}".format(el[0], txt), fg = col).grid(row = i, column = 0, sticky = tk.W)
 
 	def alarm_set_frame_func(self, *args):
+		"""Frame for the user alarm entries"""
 		try:
 			self.alarm_set_frame.destroy()
 		except:
@@ -1025,6 +1038,7 @@ class Gui():
 
 
 	def alarm_accept(self, channel):
+		"""Alarm accept button. Checks entries before committing changes."""
 		valid = True
 		if self.alarm_check_var.get() == 1:
 			try:
