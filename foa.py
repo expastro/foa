@@ -2,7 +2,8 @@ import ROOT
 import numpy as np
 import time 
 from playsound import playsound
-
+import warnings
+warnings.simplefilter('ignore')
 
 import Tkinter as tk
 from tkFileDialog import askopenfilename
@@ -14,6 +15,7 @@ matplotlib.use("TkAgg")
 #from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg #NavigationToolbar2TkAgg
 
 # a new Toolbar backend is necessary for the newest matplotlib verions
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 try:
 	from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as NavigationToolbar2TkAgg
 except ImportError:
@@ -132,6 +134,8 @@ class LoadRoot():
 	def get_data_all(self, detector_lst):
 		all_out_lst = []
 		for det in detector_lst:
+			if det["ch"] == 99:
+				continue
 			all_out_lst.append(self.get_data(det["leaf"], det["ch"], det["cut_from"], det["cut_to"]))
 		
 		return all_out_lst
@@ -207,7 +211,7 @@ class Gui():
 		self.temp2 = 1
 		self.temp = 1
 		self.data_sim = 1.01
-		
+		self.ratio_flag = True
 		
 		### Create main window
 
@@ -266,8 +270,9 @@ class Gui():
 		## delete the default matplotlib home button
 		class CustomToolbar(NavigationToolbar2TkAgg):
 			toolitems = filter(lambda x: x[0] != "Home", NavigationToolbar2TkAgg.toolitems)
-		
-		
+		## load the data for the first time
+		self.root_data()
+
 		## number of plots depending on used channels
 		if len(self.detector_lst) <=3 :
 			self.f, self.ax = plt.subplots(len(self.detector_lst))
@@ -293,8 +298,7 @@ class Gui():
 			self.ax = np.array([self.ax])
 		
 		
-		## load the data for the first time
-		self.root_data()
+
 		self.canvas = FigureCanvasTkAgg(self.f, master=self.show_plot)
 		self.canvas.get_tk_widget().pack(side=tk.TOP,expand=tk.YES,fill=tk.BOTH)
 
@@ -436,6 +440,7 @@ class Gui():
 			
 			# ~ root_instance.close()
 			## time: end of loading process
+			self.neutron_current_ration()
 			self.ref_time = self.data_arr[-1][-1]
 			
 		except:
@@ -494,6 +499,7 @@ class Gui():
 				self.root.after(200, check)
 				self.init_loading2 = True
 
+			
 			self.ref_time = datetime.datetime.now()
 			self.skip_to_load = True
 			
@@ -1124,6 +1130,34 @@ class Gui():
 				self.update_interval = np.ceil(self.update_cycle * 3)
 				print "Increasing Refresh rate", self.update_interval, "s"
 
-if __name__ == "__main__":
+	def neutron_current_ration(self):
+		if self.ratio_flag:
+			current_ch = 4
+			neutron_ch = 3
 
+			current_el = 0
+			neutron_el = 0
+			np.seterr(divide='ignore', invalid='ignore')
+			for i, det in enumerate(self.detector_lst):
+				if det["ch"] == neutron_ch:
+					neutron_el = i
+				elif det["ch"] == current_ch:
+					current_el = i
+			self.neutron_current_ratio_x =self.data_arr[current_el][0][0::2]
+			self.neutron_current_ratio_y = np.nan_to_num(self.data_arr[neutron_el][1][0::2] / self.data_arr[current_el][1][0::2])
+			# np.set_printoptions(threshold=np.inf)
+
+			# print self.neutron_current_ratio_y
+			self.neutron_current_ratio_y[np.where(self.neutron_current_ratio_y > 1.e100)] = 0
+
+
+			self.data_arr.append([self.neutron_current_ratio_x, self.neutron_current_ratio_y, datetime.datetime.now()])
+			check_for_99 = False
+			for i, det in enumerate(self.detector_lst):
+				if det["ch"] == 99:
+					 check_for_99 = True
+			if check_for_99 == False:
+				self.detector_lst.append({'on': True, 'ch': 99, 'leaf': 't', 'name': 'Ratio', 'yscale': 'linear', 'cut_to': '', 'cut_from': ''})
+
+if __name__ == "__main__":
 	Gui()
