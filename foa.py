@@ -9,6 +9,7 @@ import Tkinter as tk
 from tkFileDialog import askopenfilename
 from tkFileDialog import asksaveasfilename
 import tkMessageBox
+import ttk
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -205,6 +206,8 @@ class Gui():
 		self.alarm_user_hold = False
 		self.play_sound = False
 		self.save_time = datetime.datetime(2000,1,1)
+		self.current_ch = 4
+		self.neutron_ch = 3
 		
 		
 		## debugging var
@@ -238,7 +241,11 @@ class Gui():
 		self.save_pic_var = tk.IntVar()
 		self.save_pic_time_var = tk.StringVar()
 		self.save_pic_time_var.set("60")
-
+		self.ratio_var = tk.IntVar()
+		self.ratio_current = tk.StringVar()
+		self.ratio_current.set("4")
+		self.ratio_neutrons = tk.StringVar()
+		self.ratio_neutrons.set("3")
 
 		self.alarm_var = tk.StringVar()
 		
@@ -717,8 +724,11 @@ class Gui():
 			single_option.append(self.name_vars[ch].get())
 			single_option.append(self.cut_from_vars[ch].get())
 			single_option.append(self.cut_to_vars[ch].get())
+
 			all_options.append(single_option)
-		
+		all_options.append(self.ratio_var.get())
+		all_options.append(self.ratio_current_entry.get())
+		all_options.append(self.ratio_neutron_entry.get())
 		ch_save_fn = asksaveasfilename(defaultextension='.chset', title = \
 		"Save settings as...", filetypes = [("settings file","*.chset")])
 		
@@ -744,6 +754,9 @@ class Gui():
 				self.name_vars[ch].set(all_options[ch][3])
 				self.cut_from_vars[ch].set(all_options[ch][4])
 				self.cut_to_vars[ch].set(all_options[ch][5])
+			self.ratio_var.set(all_options[-3])
+			self.ratio_current.set(all_options[-2]) 
+			self.ratio_neutrons.set(all_options[-1]) 
 			try:
 				self.channel_window.focus_set()
 			except:
@@ -813,7 +826,16 @@ class Gui():
 			self.cut_to_entry.append(tk.Entry(self.channel_window, textvariable = self.cut_to_vars[ch], width = 10))
 			self.cut_to_entry[ch].grid(row = ch + 1, column = 8, padx = (5,5), pady = (0,5), sticky = tk.W)
 		
-		
+		ttk.Separator(self.channel_window, orient=tk.HORIZONTAL).grid(row = 98 , column = 0, columnspan = 10,  pady = (0,5), sticky = tk.W+tk.E)
+		self.ratio_check = tk.Checkbutton(self.channel_window, text="Ratio", variable=self.ratio_var)
+		self.ratio_check.grid(row = 99 , column = 0, padx = (5,5), pady = (0,5), sticky = tk.W+tk.E)
+		tk.Label(self.channel_window, text="Neutrons:").grid(row = 99, column = 4)
+		tk.Label(self.channel_window, text="Current:").grid(row = 99, column = 6)
+		self.ratio_neutron_entry = tk.Entry(self.channel_window, textvariable = self.ratio_neutrons, width = 4)
+		self.ratio_neutron_entry.grid(row = 99 , column = 5, padx = (5,5), pady = (0,5))
+		self.ratio_current_entry=tk.Entry(self.channel_window, textvariable = self.ratio_current, width = 4)
+		self.ratio_current_entry.grid(row = 99 , column = 7, padx = (5,5), pady = (0,5))
+
 		self.ch_button = tk.Button(self.channel_window, text='Accept',\
 		command = self.channel_button, width = 8)
 		self.ch_button.grid(row = 100, column = 0, padx = 10,\
@@ -1105,6 +1127,13 @@ class Gui():
 					print "No cut set! Invalid cut combination!"
 				self.detector_lst.append(self.detector_all_lst[ch])
 		
+		if self.ratio_var.get() == 1:
+			self.ratio_flag = True
+			self.current_ch = int(self.ratio_current_entry.get())
+			self.neutron_ch = int(self.ratio_neutron_entry.get())
+		else:
+			self.ratio_flag = False
+		
 		if self.file_loaded == True:
 			self.reload()
 		self.channel_window.destroy()
@@ -1132,19 +1161,18 @@ class Gui():
 
 	def neutron_current_ration(self):
 		if self.ratio_flag:
-			current_ch = 4
-			neutron_ch = 3
-
 			current_el = 0
 			neutron_el = 0
+			
 			np.seterr(divide='ignore', invalid='ignore')
 			for i, det in enumerate(self.detector_lst):
-				if det["ch"] == neutron_ch:
+				if det["ch"] == self.neutron_ch:
 					neutron_el = i
-				elif det["ch"] == current_ch:
+				if det["ch"] == self.current_ch:
 					current_el = i
 			self.neutron_current_ratio_x =self.data_arr[current_el][0][0::2]
 			self.neutron_current_ratio_y = np.nan_to_num(self.data_arr[neutron_el][1][0::2] / self.data_arr[current_el][1][0::2])
+
 			# np.set_printoptions(threshold=np.inf)
 
 			# print self.neutron_current_ratio_y
